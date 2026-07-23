@@ -10,6 +10,9 @@ permissions:
   contents: read
   packages: write
   issues: write
+defaults:
+  run:
+    working-directory: ./insurance_app
 
 env:
   REGISTRY: ghcr.io
