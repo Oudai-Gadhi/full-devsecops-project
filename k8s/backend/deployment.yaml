@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: devsecops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+      containers:
+      - name: backend
+        image: ghcr.io/oudai-gadhi/cloud-native-claims-platform/backend:cd1a55bc517231c1c86d5ca16801346d652879cd
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 1001
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        # --- NEW: scan-input / clean-output mounts ---
+        - name: scan-input
+          mountPath: /mnt/scan-input
+        - name: clean-output
+          mountPath: /mnt/clean-output
+          readOnly: true
+        env:
+        - name: DB_HOST
+          value: mysql
+        - name: DB_PORT
+          value: "3306"
+
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: DB_USER
+
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: DB_PASSWORD
+
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: mysql-credentials
+              key: DB_NAME
+
+        - name: DATABASE_URL
+          value: mysql+pymysql://$(DB_USER):$(DB_PASSWORD)@mysql:3306/$(DB_NAME)
+        - name: SMTP_SERVER
+          value: "smtp.gmail.com"
+        - name: SMTP_PORT
+          value: "587"
+        - name: SMTP_USER
+          valueFrom:
+            secretKeyRef:
+              name: smtp-credentials
+              key: SMTP_USER
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: smtp-credentials
+              key: SMTP_PASSWORD
+        - name: JWT_SECRET
+          valueFrom:
+             secretKeyRef:
+               name: backend-jwt-secret
+               key: JWT_SECRET
+        - name: COOKIE_SECURE
+          value: "false"  #FLIP TO TRUE ONCE HTTPS
+        # --- NEW: scan paths only ---
+        - name: SCAN_INPUT_DIR
+          value: /mnt/scan-input
+        - name: CLEAN_OUTPUT_DIR
+          value: /mnt/clean-output
+      volumes:
+        # --- NEW ---
+        - name: scan-input
+          persistentVolumeClaim:
+            claimName: scan-input-nfs
+        - name: clean-output
+          persistentVolumeClaim:
+            claimName: clean-output-nfs

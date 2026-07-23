@@ -1,0 +1,141 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: av-scanner
+  namespace: av-scanning
+  labels:
+    app: av-scanner
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate   # avoid two pods watching the same NFS share at once
+  selector:
+    matchLabels:
+      app: av-scanner
+  template:
+    metadata:
+      labels:
+        app: av-scanner
+    spec:
+      securityContext:
+        fsGroup: 100   # clamav group in the debian/clamav images, adjust if needed
+
+      initContainers:
+        # Ensure freshclam has pulled an initial DB before clamd starts,
+        # otherwise clamd fails to start on a totally empty volume.
+        - name: freshclam-init
+          image: clamav/clamav:stable
+          command: ["freshclam", "--config-file=/usr/local/etc/av-scanner/freshclam.conf", "--stdout"]
+          volumeMounts:
+            - name: clamav-db
+              mountPath: /var/lib/clamav
+            - name: clamd-conf
+              mountPath: /usr/local/etc/av-scanner/freshclam.conf
+              subPath: freshclam.conf
+
+      containers:
+        - name: clamd
+          image: clamav/clamav:stable
+          command: ["clamd", "--config-file=/usr/local/etc/av-scanner/clamd.conf", "--foreground=true"]
+          ports:
+            - containerPort: 3310
+              name: clamd-tcp
+          resources:
+            requests:
+              cpu: 250m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          volumeMounts:
+            - name: clamav-db
+              mountPath: /var/lib/clamav
+            - name: clamd-conf
+              mountPath: /usr/local/etc/av-scanner/clamd.conf
+              subPath: clamd.conf
+            - name: scan-input
+              mountPath: /scan-input
+              readOnly: true
+            - name: clamd-run
+              mountPath: /var/run/clamav
+          readinessProbe:
+            tcpSocket:
+              port: 3310
+            initialDelaySeconds: 10
+            periodSeconds: 10
+
+        - name: freshclam
+          image: clamav/clamav:stable
+          command: ["freshclam", "--config-file=/usr/local/etc/av-scanner/freshclam.conf", "-d", "--foreground", "--stdout"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 256Mi
+            limits:
+              cpu: 200m
+              memory: 512Mi
+          volumeMounts:
+            - name: clamav-db
+              mountPath: /var/lib/clamav
+            - name: clamd-conf
+              mountPath: /usr/local/etc/av-scanner/freshclam.conf
+              subPath: freshclam.conf
+
+        - name: watcher
+          image: av-watcher:latest
+          imagePullPolicy: Never
+          env:
+            - name: SCAN_DIR
+              value: /scan-input
+            - name: CLEAN_DIR
+              value: /clean-output
+            - name: YARA_RULES
+              value: /rules/starter.yar
+            - name: CLAMD_SOCKET_HOST
+              value: 127.0.0.1
+            - name: CLAMD_SOCKET_PORT
+              value: "3310"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+            - secretRef:
+                name: scan-db-credentials
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: scan-input
+              mountPath: /scan-input
+            - name: clean-output
+              mountPath: /clean-output
+            - name: yara-rules
+              mountPath: /rules
+
+      volumes:
+        - name: clamav-db
+          persistentVolumeClaim:
+            claimName: clamav-db
+        - name: clamd-conf
+          configMap:
+            name: clamd-conf
+        - name: yara-rules
+          configMap:
+            name: yara-rules
+        - name: scan-input
+          persistentVolumeClaim:
+            claimName: scan-input-nfs
+        - name: clean-output
+          persistentVolumeClaim:
+            claimName: clean-output-nfs
+        - name: clamd-run
+          emptyDir: {}

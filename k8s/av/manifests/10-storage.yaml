@@ -1,0 +1,73 @@
+# Persistent volume for ClamAV signature DB (so it survives pod restarts
+# and doesn't redownload the full DB every time).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clamav-db
+  namespace: av-scanning
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+  storageClassName: standard   # adjust to your cluster's default StorageClass
+---
+# NFS share that holds the files to be scanned.
+# Adjust server/path to your actual NFS export.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: scan-input-nfs-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.221.135
+    path: /srv/nfs/scan-input
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scan-input-nfs
+  namespace: av-scanning
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: scan-input-nfs-pv
+  storageClassName: ""
+---
+# Second NFS share: holds files that scanned clean, for the admin to view.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: clean-output-nfs-pv
+spec:
+  capacity:
+    storage: 50Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: 192.168.221.135
+    path: /srv/nfs/scan-input-2
+  persistentVolumeReclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: clean-output-nfs
+  namespace: av-scanning
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  volumeName: clean-output-nfs-pv
+  storageClassName: ""

@@ -1,0 +1,19 @@
+# Terraform local state and sensitive variables
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+*.tfvars.json
+
+# Local development and OS files
+.kube/
+minikube/
+.DS_Store
+*.log
+
+# Application dependencies & environments
+__pycache__/
+.env
+venv/
+node_modules/
+security-api/routes/.env

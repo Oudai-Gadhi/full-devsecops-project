@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: devsecops
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: backend
+
+  template:
+    metadata:
+      labels:
+        app: backend
+
+    spec:
+      imagePullSecrets:
+      - name: ghcr-secret
+
+      containers:
+      - name: backend
+
+        image: ghcr.io/oudai-gadhi/cloud-native-claims-platform/backend:1193acdb9a7ba92999ae07df0a32ead6e9c6b6f5
+
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 8000
+
+        env:
+        - name: DATABASE_URL
+          value: "mysql+pymysql://root:rootpassword@mysql:3306/insurance"
+
+        - name: DB_HOST
+          value: mysql
+
+        - name: DB_PORT
+          value: "3306"
+
+        - name: DB_NAME
+          value: insurance
+
+        - name: DB_USER
+          value: root
+
+        - name: DB_PASSWORD
+          value: rootpassword
+        - name: SMTP_SERVER
+          value: "smtp.gmail.com"
+        - name: SMTP_PORT
+          value: "587"
+        
+        

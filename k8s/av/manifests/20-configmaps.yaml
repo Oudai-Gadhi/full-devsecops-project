@@ -1,0 +1,273 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yara-rules
+  namespace: av-scanning
+data:
+  starter.yar: |
+    /*
+    ================================================================================
+      APPLICATION-SCOPED YARA RULESET — PDF / JPG / PNG UPLOADS ONLY
+      Author: Oudai Gadhi
+
+      DESIGN PRINCIPLES (read this before adding new rules):
+
+      1. SCOPE: This app accepts exactly three file types: PDF, JPG, PNG.
+         Every rule below is anchored to one of those three magic-byte
+         signatures FIRST. A rule should never be able to match a file that
+         isn't even the format it claims to inspect.
+
+      2. PRECEDENCE BUG (the cause of the "hello.txt matches everything"
+         issue): in YARA, `and` binds tighter than `or`. So:
+
+             $magic at 0 and $a or $b or $c
+
+         is parsed as:
+
+             ($magic at 0 and $a) or $b or $c
+
+         ...meaning $b and $c match ANY file, regardless of magic bytes,
+         because they're not inside the parentheses with the magic check.
+         EVERY condition below wraps its OR-branches in explicit parentheses
+         so the magic-byte check always applies to the whole condition:
+
+             $magic at 0 and ( $a or $b or $c )
+
+      3. Rules are intentionally format-specific rather than generic
+         "contains suspicious string" rules, because generic string rules
+         are exactly what caused false positives on plain text before.
+    ================================================================================
+    */
+
+    // ============================================================
+    // 0. PIPELINE / CI VALIDATION
+    // ============================================================
+
+    rule Generic_EICAR_Test_String
+    {
+        meta:
+            description = "Detects the standard EICAR antivirus test string, used to verify the scanning pipeline itself is alive and wired correctly"
+            author      = "Oudai Gadhi"
+            severity    = "info"
+            mitre_attack = "T1204"
+        strings:
+            $eicar = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*"
+        condition:
+            $eicar
+    }
+
+    // ============================================================
+    // 1. PDF RULES
+    // ============================================================
+
+    rule Detect_Malicious_PDF_JS
+    {
+        meta:
+            description = "Flags PDFs containing JavaScript combined with automatic-execution triggers (OpenAction/AA) or obfuscation calls (eval/unescape). Legitimate uploaded PDFs almost never need embedded JS."
+            author      = "Oudai Gadhi"
+            severity    = "high"
+            mitre_attack = "T1027.009"
+        strings:
+            $pdf_magic   = { 25 50 44 46 }   // "%PDF"
+            $js1         = "/JavaScript" nocase
+            $js2         = "/JS" nocase
+            $open_action = "/OpenAction" nocase
+            $aa          = "/AA" nocase
+            $eval        = "eval(" nocase
+            $unescape    = "unescape(" nocase
+        condition:
+            // Must actually BE a PDF first. Everything else lives inside
+            // this single parenthesized OR group, so none of it can match
+            // on its own against a non-PDF file.
+            $pdf_magic at 0 and
+            (
+                ( ($open_action or $aa) and ($js1 or $js2) ) or
+                ( $js1 and ($eval or $unescape) )
+            )
+    }
+
+    rule Detect_PDF_Embedded_File
+    {
+        meta:
+            description = "Flags PDFs that embed other files inside them (/EmbeddedFile). Split into its own rule so this check can never accidentally match non-PDF files the way it did when it was OR'd loosely into the JS rule above."
+            author      = "Oudai Gadhi"
+            severity    = "medium"
+            mitre_attack = "T1027.009"
+        strings:
+            $pdf_magic = { 25 50 44 46 }
+            $embedded  = "/EmbeddedFile" nocase
+        condition:
+            $pdf_magic at 0 and $embedded
+    }
+
+    // ============================================================
+    // 2. JPEG RULES
+    // ============================================================
+
+    rule Detect_JPEG_Polyglot_Webshell
+    {
+        meta:
+            description = "Detects JPEG files that are actually PHP/webshell polyglots — a valid JPEG structure with executable server-side code appended or embedded. This is the classic 'upload avatar.jpg, actually get a webshell' attack."
+            author      = "Oudai Gadhi"
+            severity    = "critical"
+            mitre_attack = "T1204.002"
+        strings:
+            $jpeg_start = { FF D8 FF }
+            $jpeg_end   = { FF D9 }
+            $php_tag    = "<?php" nocase
+            $php_short  = "<script language=\"php\"" nocase
+            $exec1 = "system("
+            $exec2 = "exec("
+            $exec3 = "passthru("
+            $exec4 = "shell_exec("
+            $exec5 = "base64_decode("
+        condition:
+            // Must have valid JPEG start AND end markers, THEN check for
+            // any PHP/exec indicator anywhere in the file.
+            $jpeg_start at 0 and $jpeg_end and
+            (
+                $php_tag or $php_short or
+                any of ($exec1, $exec2, $exec3, $exec4, $exec5)
+            )
+    }
+
+    // ============================================================
+    // 3. PNG RULES
+    // ============================================================
+
+    rule Detect_PNG_Anomalous_Payload
+    {
+        meta:
+            description = "Detects PNGs with script/shell indicators stashed inside text metadata chunks (tEXt/zTXt), a common technique for smuggling payloads through image upload fields."
+            author      = "Oudai Gadhi"
+            severity    = "high"
+            mitre_attack = "T1027"
+        strings:
+            $png_magic  = { 89 50 4E 47 0D 0A 1A 0A }
+            $png_end    = { 49 45 4E 44 AE 42 60 82 }
+            $tEXt       = "tEXt"
+            $zTXt       = "zTXt"
+            $script_tag = "<script" nocase
+            $cmd        = "cmd.exe" nocase
+            $powershell = "powershell" nocase
+            $php_tag    = "<?php" nocase
+        condition:
+            $png_magic at 0 and $png_end and
+            (
+                ($tEXt or $zTXt) and
+                ($script_tag or $cmd or $powershell or $php_tag)
+            )
+    }
+
+    // ============================================================
+    // 4. CROSS-FORMAT: POLYGLOT / TYPE-CONFUSION DETECTION
+    // ============================================================
+    //
+    // Because this app is a strict allow-list (PDF/JPG/PNG only), the
+    // single most useful class of rule to add is: "does this file
+    // ALSO contain the magic bytes of a format we do NOT accept?"
+    // A pure PDF should never contain a ZIP local file header, a PE
+    // header, or an HTML doctype — if it does, someone is trying to
+    // smuggle a second interpretation of the file past the validator.
+
+    rule Detect_Polyglot_Disallowed_Format
+    {
+        meta:
+            description = "Flags files claiming to be PDF/JPG/PNG that also contain magic bytes for formats this app never accepts (ZIP/Office, PE/EXE, HTML). Strong polyglot-attack indicator."
+            author      = "Oudai Gadhi"
+            severity    = "critical"
+            mitre_attack = "T1027.009"
+        strings:
+            $pdf_magic  = { 25 50 44 46 }
+            $jpeg_magic = { FF D8 FF }
+            $png_magic  = { 89 50 4E 47 0D 0A 1A 0A }
+
+            $zip_magic  = { 50 4B 03 04 }   // ZIP / DOCX / XLSX / JAR
+            $mz_magic   = { 4D 5A }         // PE / EXE / DLL
+        condition:
+            if $png_magic at 0 then (
+                // In a clean PNG, the file ends completely with the IEND chunk trailer.
+                // The hex for the IEND chunk trailer is: 00 00 00 00 49 45 4E 44 AE 42 60 82
+                // If a ZIP or MZ header exists AFTER the first PNG end marker, it's a polyglot.
+            
+               for any i in (1..#zip_magic) : ( @zip_magic[i] > @png_magic + 8 ) and 
+            
+               // To make MZ reliable, ensure it doesn't just match random compressed data
+               // by checking if it appears deep past the standard structure or near the EOF.
+               for any i in (1..#mz_magic) : ( @mz_magic[i] > filesize - 2000 )
+            )
+
+           else if $jpeg_magic at 0 then (
+               // A JPEG file technically ends at the EOI marker (FF D9).
+               // However, tracking trailing bytes can be tricky due to camera padding.
+               // Instead, we strictly avoid full-body scanning for the 2-byte MZ.
+            
+               // Only flag ZIP if it doesn't look like an accidental mid-stream match
+               $zip_magic and 
+            
+               // Remove the blind MZ matching entirely for JPEGs, or strictly enforce 
+               // that it must appear at the absolute tail of the file where an appended payload sits.
+               for any i in (1..#mz_magic) : ( @mz_magic[i] > filesize - 128 )
+           )
+           else if $pdf_magic at 0 then (
+               // PDFs natively support embedding files and text, so HTML/ZIP strings 
+               // naturally occur inside raw PDF streams.
+               // Only trigger if an executable header is slipped in suspiciously.
+               for any i in (1..#mz_magic) : ( @mz_magic[i] == 0 or @mz_magic[i] > filesize - 512 )
+        )
+        
+        else (
+               false
+        )
+
+
+
+
+
+
+
+    }
+
+    // ============================================================
+    // 5. FILENAME-LEVEL EVASION
+    // ============================================================
+
+    rule Suspicious_Double_Extension
+    {
+        meta:
+            description = "Flags filenames with double extensions used to trick users/systems into treating an executable as an image or document (e.g. invoice.pdf.exe)"
+            author      = "Oudai Gadhi"
+            severity    = "high"
+            mitre_attack = "T1036.007"
+        strings:
+            $a = ".pdf.exe" nocase
+            $b = ".jpg.exe" nocase
+            $c = ".png.exe" nocase
+            $d = ".pdf.js" nocase
+            $e = ".jpg.php" nocase
+            $f = ".png.php" nocase
+        condition:
+            any of them
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clamd-conf
+  namespace: av-scanning
+data:
+  clamd.conf: |
+    LogTime yes
+    LogVerbose yes
+    PidFile /var/run/clamav/clamd.pid
+    TCPSocket 3310
+    TCPAddr 0.0.0.0
+    DatabaseDirectory /var/lib/clamav
+    MaxScanSize 200M
+    MaxFileSize 100M
+    StreamMaxLength 100M
+    User clamav
+  freshclam.conf: |
+    DatabaseDirectory /var/lib/clamav
+    LogVerbose yes
+    DatabaseMirror database.clamav.net

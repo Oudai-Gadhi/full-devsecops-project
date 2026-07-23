@@ -1,0 +1,462 @@
+name: Full DevSecOps Pipeline (CI/CD + Security)
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+  issues: write
+
+env:
+  REGISTRY: ghcr.io
+  API_URL: https://identity-patio-overhang.ngrok-free.dev/api/security/reports
+
+
+jobs:
+
+# =========================
+# 1. SAST + SECRETS
+# =========================
+
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Gitleaks (JSON)
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+        with:
+          args: detect --report-format json --report-path gitleaks.json
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks
+          path: gitleaks.json
+
+
+  semgrep:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Semgrep (JSON)
+        run: semgrep scan --config auto --json --output semgrep.json || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep
+          path: semgrep.json
+
+
+  trivy-fs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+      - name: Run Trivy FS (JSON)
+        run: trivy fs --format json -o trivy-fs.json . || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs
+          path: trivy-fs.json
+
+
+# =========================
+# 2. BUILD
+# =========================
+
+  build-images:
+    needs: [gitleaks, semgrep, trivy-fs]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build frontend
+        run: docker build -t frontend:test ./frontend
+
+      - name: Build backend
+        run: docker build -t backend:test ./backend
+
+
+# =========================
+# 3. TRIVY IMAGE SCAN
+# =========================
+
+  trivy-image:
+    needs: [build-images]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Build images
+        run: |
+          docker build -t frontend:test ./frontend
+          docker build -t backend:test ./backend
+
+      - name: Scan frontend image (JSON)
+        run:  |
+          trivy image --format json -o trivy-frontend.json \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            frontend:test || true
+
+      - name: Scan backend image (JSON)
+        run:  |
+          trivy image --format json -o trivy-backend.json \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            backend:test || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-images
+          path: |
+            trivy-frontend.json
+            trivy-backend.json
+
+
+# =========================
+# 4. PUSH TO GHCR
+# =========================
+
+  push-images:
+    needs: [trivy-image]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set IMAGE_BASE
+        run: echo "IMAGE_BASE=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & Push Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/frontend:latest
+            ${{ env.IMAGE_BASE }}/frontend:${{ github.sha }}
+
+      - name: Build & Push Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.IMAGE_BASE }}/backend:latest
+            ${{ env.IMAGE_BASE }}/backend:${{ github.sha }}
+
+
+# =========================
+# 5. ZAP (frontend only, for now) + REPORTING
+# =========================
+
+  zap:
+    needs: [push-images]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set IMAGE_BASE
+        run: echo "IMAGE_BASE=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull image
+        run: docker pull $IMAGE_BASE/frontend:latest
+
+      - name: Run container
+        run: docker run -d -p 8080:8080 --name app $IMAGE_BASE/frontend:latest
+
+      - name: Wait app
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8080 && exit 0
+            sleep 2
+          done
+          docker logs app
+          exit 1
+
+      - name: Run ZAP
+        run: |
+          mkdir -p zap-reports
+          chmod -R 777 zap-reports
+          docker run --rm --network=host \
+            -v $PWD/zap-reports:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py -t http://localhost:8080 \
+            -J zap.json -w zap.md -r zap.html || true
+      - name: verify zap report was written
+        run: |
+          ls -la zap-reports/
+          test -f zap-reports/zap.json && echo "zap.json present" || echo "::warning::zap.json missing after ZAP run"
+
+
+      - name: Upload ZAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap
+          path: zap-reports
+
+      - name: Cleanup app container
+        if: always()
+        run: docker rm -f app || true
+
+# =========================
+# 5b. ZAP (backend, authenticated API scan)
+# =========================
+
+  zap-backend:
+    needs: [push-images]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set IMAGE_BASE
+        run: echo "IMAGE_BASE=ghcr.io/${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create network
+        run: docker network create zap-backend-net
+
+      - name: Start throwaway MySQL
+        run: |
+          docker run -d --name mysql --network zap-backend-net \
+            -e MYSQL_ROOT_PASSWORD=rootpassword \
+            -e MYSQL_DATABASE=insurance \
+            mysql:8
+
+      - name: Wait for MySQL
+        run: |
+          for i in $(seq 1 30); do
+            docker exec mysql mysqladmin ping -h localhost -uroot -prootpassword --silent && exit 0
+            sleep 2
+          done
+          docker logs mysql
+          exit 1
+
+      - name: Pull backend image
+        run: docker pull $IMAGE_BASE/backend:latest
+
+      - name: Run backend container
+        run: |
+          docker run -d -p 8000:8000 --name backend-app --network zap-backend-net \
+            -e JWT_SECRET="${{ secrets.ZAP_JWT }}" \
+            -e DATABASE_URL="mysql+pymysql://root:rootpassword@mysql:3306/insurance" \
+            -e COOKIE_SECURE=false \
+            -e SCAN_INPUT_DIR=/tmp/scan-input \
+            -e CLEAN_OUTPUT_DIR=/tmp/clean-output \
+            $IMAGE_BASE/backend:latest
+
+      - name: Wait for backend
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/api/car-models && exit 0
+            sleep 2
+          done
+          docker logs backend-app
+          exit 1
+
+      - name: Seed a test admin user
+        run: |
+          pip install passlib[bcrypt] --break-system-packages -q
+          HASH=$(python3 -c "from passlib.context import CryptContext; print(CryptContext(schemes=['bcrypt']).hash('ZapTest123!'))")
+          docker exec mysql mysql -uroot -prootpassword insurance -e \
+            "INSERT INTO admin_users (username, password_hash, is_active) VALUES ('zap_scanner', '$HASH', 1);"
+
+      - name: Log in and capture session cookie
+        run: |
+          curl -s -c cookies.txt -X POST http://localhost:8000/api/login \
+            -H "Content-Type: application/json" \
+            -d '{"username":"zap_scanner","password":"ZapTest123!"}'
+          COOKIE_VALUE=$(grep star_admin_session cookies.txt | awk '{print $NF}')
+          echo "SESSION_COOKIE=star_admin_session=$COOKIE_VALUE" >> $GITHUB_ENV
+
+      - name: Run ZAP API scan (authenticated)
+        run: |
+          mkdir -p zap-backend-reports
+          chmod -R 777 zap-backend-reports
+          docker run --rm --network=host \
+            -v $PWD/zap-backend-reports:/zap/wrk:rw \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-api-scan.py -t http://localhost:8000/openapi.json -f openapi \
+            -J zap-backend.json -w zap-backend.md -r zap-backend.html \
+            -z "-config replacer.full_list(0).description=auth \
+                -config replacer.full_list(0).enabled=true \
+                -config replacer.full_list(0).matchtype=REQ_HEADER \
+                -config replacer.full_list(0).matchstr=Cookie \
+                -config replacer.full_list(0).regex=false \
+                -config replacer.full_list(0).replacement=${{ env.SESSION_COOKIE }}" || true
+
+      - name: Verify report was written
+        run: |
+          ls -la zap-backend-reports/
+          test -f zap-backend-reports/zap-backend.json && echo "present" || echo "::warning::zap-backend.json missing"
+
+      - name: Upload ZAP backend report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-backend
+          path: zap-backend-reports
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker rm -f backend-app mysql || true
+          docker network rm zap-backend-net || true
+
+
+# =========================
+# 6. CENTRAL SECURITY REPORTING
+# =========================
+
+  send-security-report:
+    # Wait until every security tool has safely completed and uploaded its artifacts
+    needs: [gitleaks, semgrep, trivy-fs, trivy-image, zap, zap-backend]
+    runs-on: ubuntu-latest
+    if: always() # Runs even if security findings caused earlier exit codes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Gitleaks Report
+        uses: actions/download-artifact@v4
+        with:
+          name: gitleaks-results.sarif
+          path: workspace-artifacts/gitleaks
+
+      - name: Download Semgrep Report
+        uses: actions/download-artifact@v4
+        with:
+          name: semgrep
+          path: workspace-artifacts/semgrep
+
+      - name: Download Trivy FS Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-fs
+          path: workspace-artifacts/trivy-fs
+
+      - name: Download Trivy Images Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-images
+          path: workspace-artifacts/trivy-images
+
+      - name: Download ZAP Report
+        uses: actions/download-artifact@v4
+        with:
+          name: zap
+          path: workspace-artifacts/zap
+
+      - name: Download ZAP Backend Report
+        uses: actions/download-artifact@v4
+        with:
+          name: zap-backend
+          path: workspace-artifacts/zap-backend
+
+      - name: Flatten and Merge Scan Results
+        run: |
+          # Move files to base directories expected by build_security_report.py
+          cp workspace-artifacts/gitleaks/gitleaks.json . || echo "[]" > gitleaks.json
+          cp workspace-artifacts/semgrep/semgrep.json . || echo "{}" > semgrep.json
+          cp workspace-artifacts/trivy-fs/trivy-fs.json . || echo "{}" > trivy-fs.json
+
+          python3 - << 'EOF'
+          import json
+          import os
+
+          def load(p):
+              try:
+                  with open(p) as f:
+                      return json.load(f)
+              except Exception:
+                  return {}
+
+          # ---- 1. Merge Trivy Image Reports ----
+          fe_trivy = load("workspace-artifacts/trivy-images/trivy-frontend.json")
+          be_trivy = load("workspace-artifacts/trivy-images/trivy-backend.json")
+          merged_trivy = {
+               "Results": (fe_trivy.get("Results") or []) + (be_trivy.get("Results") or [])
+          }
+          with open("trivy-image.json", "w") as f:
+              json.dump(merged_trivy, f)
+
+          # ---- 2. Merge ZAP Frontend & Backend Reports ----
+          fe_zap = load("workspace-artifacts/zap/zap.json")
+          be_zap = load("workspace-artifacts/zap-backend/zap-backend.json")
+
+          fe_site = fe_zap.get("site", [])
+          be_site = be_zap.get("site", [])
+          
+          if not isinstance(fe_site, list): fe_site = [fe_site] if fe_site else []
+          if not isinstance(be_site, list): be_site = [be_site] if be_site else []
+
+          merged_zap = {"site": fe_site + be_site}
+          with open("zap.json", "w") as f:
+              json.dump(merged_zap, f)
+          EOF
+
+      - name: Build final JSON report
+        run: python3 scripts/build_security_report.py
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+          RUN_ID: ${{ github.run_id }}
+
+      - name: Send report to Webhook
+        run: |
+          curl -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: ${{ secrets.API_KEY }}" \
+            -d @security-report.json \
+            -w "\nHTTP_STATUS:%{http_code}\n"
+
+      
+
+
+   

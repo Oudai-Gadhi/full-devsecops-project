@@ -1,0 +1,17 @@
+FROM debian:bookworm
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    yara \
+    python3 \
+    postgresql-client \
+    coreutils \
+    findutils \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY watcher.sh /usr/local/bin/watcher.sh
+COPY clamd_scan.py /usr/local/bin/clamd_scan.py
+
+RUN chmod +x /usr/local/bin/watcher.sh /usr/local/bin/clamd_scan.py
+
+ENTRYPOINT ["/usr/local/bin/watcher.sh"]
