@@ -29,18 +29,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks needs full history to scan commits, not just the latest snapshot
 
       - name: Run Gitleaks (JSON)
-        uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
-        with:
-          args: detect --report-format json --report-path gitleaks.json
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/repo" zricethezav/gitleaks:latest \
+            detect --source=/repo --no-git=false \
+            --report-format json --report-path /repo/insurance_app/gitleaks.json \
+            --exit-code 0
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks
-          path: gitleaks.json
+          path: insurance_app/gitleaks.json
 
 
   semgrep:

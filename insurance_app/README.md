@@ -41,7 +41,7 @@
    - **Admin Dashboard**: [http://localhost:5173/admin](http://localhost:5173/admin)
    - **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-## Tech Stack Details
+##Tech Stack Details
 - **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons, Axios.
 - **Backend**: FastAPI, SQLAlchemy (ORM), Pymysql.
 - **Database**: MySQL 8.0.
