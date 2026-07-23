@@ -167,7 +167,7 @@ jobs:
       - name: Build & Push Frontend
         uses: docker/build-push-action@v6
         with:
-          context: ./frontend
+          context: ./insurance_app/frontend
           push: true
           tags: |
             ${{ env.IMAGE_BASE }}/frontend:latest
@@ -176,7 +176,7 @@ jobs:
       - name: Build & Push Backend
         uses: docker/build-push-action@v6
         with:
-          context: ./backend
+          context: ./insurance_app/backend
           push: true
           tags: |
             ${{ env.IMAGE_BASE }}/backend:latest
@@ -184,7 +184,7 @@ jobs:
 
 
 # =========================
-# 5. ZAP (frontend only, for now) + REPORTING
+# 5. ZAP (frontend )
 # =========================
 
   zap:
