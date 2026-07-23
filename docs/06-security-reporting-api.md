@@ -151,17 +151,14 @@ GitHub-hosted runners can't reach a service on your LAN directly. This
 project's current setup uses **ngrok**:
 
 ```bash
-ngrok http 5000
+ngrok config add-authtoken $YOUR_AUTHTOKEN
+ngrok http --url=<API_URI>.dev 5000
 ```
+AUTHTOKEN IS FOUND IN NGROK WEBAPP
 
 Copy the resulting `https://<random>.ngrok-free.dev` URL into the
 workflow's `env.API_URL` (pointing at `/api/security/reports`).
 
-This is fine for demos but has two real downsides worth knowing:
-- Free ngrok URLs change every time you restart the tunnel, requiring a
-  workflow edit each time.
-- It's a public tunnel into your network — the `X-API-Key` check is your
-  only line of defense, so treat that key as a real secret.
 
 For a durable setup, replace the tunnel with either a self-hosted GitHub
 Actions runner inside your network (no need to expose the API publicly

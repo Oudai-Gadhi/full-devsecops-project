@@ -3,6 +3,8 @@ name: Full DevSecOps Pipeline (CI/CD + Security)
 on:
   push:
     branches: ["main"]
+    paths:
+      - 'insurance_app/**'
 
 permissions:
   contents: read
