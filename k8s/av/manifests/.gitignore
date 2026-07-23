@@ -1,2 +1,2 @@
-# Kubernetes secrets
-av/manifests/25-secret.yaml
+# Kubernetes secret
+25-secret.yaml
