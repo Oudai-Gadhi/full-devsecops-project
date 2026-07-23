@@ -31,7 +31,7 @@
    ```
    *-d runs it in detached mode. Remove it if you want to see logs.*
 
-4.**Verify containers are running**:
+4 .**Verify containers are running**:
    ```bash
    sudo docker-compose ps
    ```

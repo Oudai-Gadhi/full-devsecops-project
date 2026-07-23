@@ -57,7 +57,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: semgrep
-          path: semgrep.json
+          path: insurance_app/semgrep.json
 
 
   trivy-fs:
@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: trivy-fs
-          path: trivy-fs.json
+          path: insurance_app/trivy-fs.json
 
 
 # =========================
@@ -139,8 +139,8 @@ jobs:
         with:
           name: trivy-images
           path: |
-            trivy-frontend.json
-            trivy-backend.json
+            insurance_app/trivy-frontend.json
+            insurance_app/trivy-backend.json
 
 
 # =========================
@@ -238,7 +238,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zap
-          path: zap-reports
+          path: insurance_app/zap-reports
 
       - name: Cleanup app container
         if: always()
@@ -346,7 +346,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: zap-backend
-          path: zap-backend-reports
+          path: insurance_app/zap-backend-reports
 
       - name: Cleanup
         if: always()
@@ -364,6 +364,9 @@ jobs:
     needs: [gitleaks, semgrep, trivy-fs, trivy-image, zap, zap-backend]
     runs-on: ubuntu-latest
     if: always() # Runs even if security findings caused earlier exit codes
+    defaults:
+      run:
+        working-directory: . # override the workflow-level ./insurance_app default: everything in this job is root-relative
 
     steps:
       - uses: actions/checkout@v4
@@ -371,7 +374,7 @@ jobs:
       - name: Download Gitleaks Report
         uses: actions/download-artifact@v4
         with:
-          name: gitleaks-results.sarif
+          name: gitleaks
           path: workspace-artifacts/gitleaks
 
       - name: Download Semgrep Report
@@ -447,7 +450,7 @@ jobs:
           EOF
 
       - name: Build final JSON report
-        run: python3 scripts/build_security_report.py
+        run: python3 insurance_app/scripts/build_security_report.py
         env:
           COMMIT_SHA: ${{ github.sha }}
           BRANCH: ${{ github.ref_name }}
@@ -460,8 +463,3 @@ jobs:
             -H "X-API-KEY: ${{ secrets.API_KEY }}" \
             -d @security-report.json \
             -w "\nHTTP_STATUS:%{http_code}\n"
-
-      
-
-
-   
