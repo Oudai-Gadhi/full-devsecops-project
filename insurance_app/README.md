@@ -37,9 +37,9 @@
    ```
 
 5. **Access the Application**:
-   - **Client Form**: [http://localhost:5173](http://localhost:5173)
-   - **Admin Dashboard**: [http://localhost:5173/admin](http://localhost:5173/admin)
-   - **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
+   -  **Client Form**: [http://localhost:5173](http://localhost:5173)
+   -  **Admin Dashboard**: [http://localhost:5173/admin](http://localhost:5173/admin)
+   -  **API Documentation (Swagger)**: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ##Tech Stack Details
 - **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons, Axios.
