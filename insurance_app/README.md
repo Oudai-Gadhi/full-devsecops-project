@@ -16,9 +16,9 @@
 ## How to Run (Linux)
 
 1. **Navigate to the directory**:
-   ```bash
-   cd /home/oudai/insurance_app
-   ```
+    ```bash
+    cd /home/oudai/insurance_app
+    ```
 
 2. **Set permissions for the uploads folder** (to ensure the container can write to it):
    ```bash

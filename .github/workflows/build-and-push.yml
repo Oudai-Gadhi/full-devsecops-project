@@ -99,13 +99,18 @@ jobs:
 
       - name: Scan Kubernetes manifests (JSON)
         run: |
-          trivy config --format json -o trivy-k8s.json ../k8s/ || true
+          trivy config --format json --output ${{ github.workspace }}/trivy-k8s.json ../k8s/ || true
+      - name: Check Trivy output
+        run: |
+          pwd
+          ls -la
+          find .. -name "trivy-k8s.json"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: trivy-k8s
-          path: trivy-k8s.json
+          path: ${{ github.workspace }}/trivy-k8s.json
 
 
 # =========================
