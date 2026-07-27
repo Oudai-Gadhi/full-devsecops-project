@@ -99,7 +99,7 @@ jobs:
 
       - name: Scan Kubernetes manifests (JSON)
         run: |
-          trivy config --format json -o trivy-k8s.json k8s/ || true
+          trivy config --format json -o trivy-k8s.json ../k8s/ || true
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
