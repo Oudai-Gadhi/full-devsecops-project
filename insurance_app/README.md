@@ -9,7 +9,7 @@
 - **Responsive UI**: Modern design with Tailwind CSS.
 - **Dockerized**: Easy setup with Docker Compose.
 
-## Prerequisites
+##Prerequisites
 - **Docker** and **Docker Compose** installed.
 - Ensure your user is in the `docker` group or use `sudo`.
 
