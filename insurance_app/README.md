@@ -16,7 +16,7 @@
 ## How to Run (Linux)
 
 1. **Navigate to the directory**:
-    ```bash
+     ```bash
     cd /home/oudai/insurance_app
     ```
 
