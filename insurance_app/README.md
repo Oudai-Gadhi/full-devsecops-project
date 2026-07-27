@@ -2,7 +2,7 @@
 
  A full-stack solution for digital insurance accident declarations, built with FastAPI (Python), React (TypeScript), and MySQL.
 
-##Features
+## Features
 - **Client Declaration Form**: Submit personal info, vehicle details, and accident reports.
 - **File Uploads**: Supports PDF, PNG, and JPG attachments.
 - **Admin Dashboard**: Insurance agents can review claims, download attachments, and update status.

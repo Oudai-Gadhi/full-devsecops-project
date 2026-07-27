@@ -21,6 +21,7 @@ report = {
         {"tool": "SEMGREP", "report": load("semgrep.json")},
         {"tool": "TRIVY_FS", "report": load("trivy-fs.json")},
         {"tool": "TRIVY_IMAGE", "report": load("trivy-image.json")},
+        {"tool": "TRIVY_CONFIG", "report": load("trivy-k8s.json")},
         {"tool": "GITLEAKS", "report": gitleaks_report},
         {"tool": "ZAP", "report": load("zap.json")}
     ]
