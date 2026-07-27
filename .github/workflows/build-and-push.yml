@@ -82,13 +82,38 @@ jobs:
           name: trivy-fs
           path: insurance_app/trivy-fs.json
 
+# =========================
+# 1b. KUBERNETES SECURITY
+# =========================
+
+  trivy-k8s-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Scan Kubernetes manifests (JSON)
+        run: |
+          trivy config --format json -o trivy-k8s.json k8s/ || true
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-k8s
+          path: trivy-k8s.json
+
 
 # =========================
 # 2. BUILD
 # =========================
 
   build-images:
-    needs: [gitleaks, semgrep, trivy-fs]
+    needs: [gitleaks, semgrep, trivy-fs, trivy-k8s-config]
     runs-on: ubuntu-latest
 
     steps:
@@ -364,7 +389,7 @@ jobs:
 
   send-security-report:
     # Wait until every security tool has safely completed and uploaded its artifacts
-    needs: [gitleaks, semgrep, trivy-fs, trivy-image, zap, zap-backend]
+    needs: [gitleaks, semgrep, trivy-fs, trivy-k8s-config, trivy-image, zap, zap-backend]
     runs-on: ubuntu-latest
     if: always() # Runs even if security findings caused earlier exit codes
     defaults:
@@ -392,6 +417,12 @@ jobs:
           name: trivy-fs
           path: workspace-artifacts/trivy-fs
 
+      - name: Download Trivy K8s Report
+        uses: actions/download-artifact@v4
+        with:
+          name: trivy-k8s
+          path: workspace-artifacts/trivy-k8s
+
       - name: Download Trivy Images Report
         uses: actions/download-artifact@v4
         with:
@@ -416,6 +447,7 @@ jobs:
           cp workspace-artifacts/gitleaks/gitleaks.json . || echo "[]" > gitleaks.json
           cp workspace-artifacts/semgrep/semgrep.json . || echo "{}" > semgrep.json
           cp workspace-artifacts/trivy-fs/trivy-fs.json . || echo "{}" > trivy-fs.json
+          cp workspace-artifacts/trivy-k8s/trivy-k8s.json . || echo "{}" > trivy-k8s.json
 
           python3 - << 'EOF'
           import json
