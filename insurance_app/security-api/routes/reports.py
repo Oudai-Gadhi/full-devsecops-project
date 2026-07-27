@@ -59,7 +59,21 @@ def ingest_report():
 
         # ---------------- FINDINGS ----------------
         findings = extract_findings(scan)
+        print("========== REPORT PARSING START ==========")
 
+
+        print("Total findings extracted:", len(findings))
+
+        for f in findings:
+          print(
+            f"TOOL={f.get('tool')} | "
+            f"TITLE={f.get('title')} | "
+            f"SEVERITY={f.get('severity')} | "
+            f"RULE={f.get('rule_id')} | "
+            f"CVE={f.get('cve')}"
+      )
+
+        print("========== REPORT PARSING END ==========")
         for f in findings:
             cur.execute("""
                 INSERT INTO security_findings (
@@ -80,10 +94,20 @@ def ingest_report():
                     %s,
                     'OPEN'
                 )
-                ON CONFLICT (fingerprint) DO UPDATE SET 
+                ON CONFLICT (fingerprint) DO UPDATE SET
                     scan_id = EXCLUDED.scan_id,
+                    severity = EXCLUDED.severity,
+                    title = EXCLUDED.title,
+                    description = EXCLUDED.description,
+                    file_path = EXCLUDED.file_path,
+                    line_number = EXCLUDED.line_number,
+                    rule_id = EXCLUDED.rule_id,
+                    package_name = EXCLUDED.package_name,
+                    installed_version = EXCLUDED.installed_version,
+                    fixed_version = EXCLUDED.fixed_version,
+                    cve = EXCLUDED.cve,
                     updated_at = NOW() 
-            """, (
+                """, (
                 scan_id,
                 f.get("tool"),
                 f.get("severity"),

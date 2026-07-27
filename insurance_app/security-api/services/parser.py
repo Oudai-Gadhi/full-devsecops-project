@@ -50,6 +50,7 @@ def extract_findings(scan):
     elif tool.startswith("TRIVY"):
         for r in report.get("Results", []):
             for v in r.get("Vulnerabilities", []):
+            # Trivy image / fs
                 findings.append({
                     "tool": tool,
                     "severity": v.get("Severity"),
@@ -65,6 +66,31 @@ def extract_findings(scan):
                         "installed_version": v.get("InstalledVersion")
                     })
                 })
+            # Trivy k8s-config
+            print("TRIVY RESULTS KEYS", r.keys())
+            print("TARGET:", r.get("Target"))
+            print("MISCONF COUNT:", len(r.get("MISCONFIG",[])))
+            for m in r.get("Misconfigurations", []):
+              cause = m.get("CauseMetadata", {})
+              findings.append({
+                  "tool": tool,
+                  "severity": m.get("Severity"),
+                  "title": m.get("Title"),
+                  "description": m.get("Message") or m.get("Description"),
+                  "package_name": None,
+                  "installed_version": None,
+                  "fixed_version": None,
+                  "cve": m.get("ID"),
+                  "type": "misconfiguration",
+                  "file_path": r.get("Target"),
+                  "line_number": cause.get("StartLine"),
+                  "fingerprint": generate_fingerprint(tool, {
+                      "id": m.get("ID"),
+                      "file_path": r.get("Target"),
+                      "resource": m.get("Message")
+                  })
+              })
+
 
     # ---------------- GITLEAKS ----------------
     elif tool == "GITLEAKS":
