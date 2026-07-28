@@ -2,3 +2,5 @@ streamlit>=1.35
 psycopg2-binary>=2.9
 passlib[bcrypt]>=1.7
 requests>=2.31
+ploty>=5.24.1
+pandas>=2.0.3
