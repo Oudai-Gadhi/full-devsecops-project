@@ -17,7 +17,7 @@ spec:
       - name: ghcr-secret
       containers:
       - name: backend
-        image: ghcr.io/oudai-gadhi/cloud-native-claims-platform/backend:cd1a55bc517231c1c86d5ca16801346d652879cd
+        image: ghcr.io/oudai-gadhi/full-devsecops-project/backend:a240e6623a8ddb69c6b5ab047dad2d830ffc9a96
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

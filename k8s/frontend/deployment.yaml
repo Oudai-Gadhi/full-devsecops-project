@@ -17,7 +17,7 @@ spec:
       - name: ghcr-secret
       containers:
       - name: frontend
-        image: ghcr.io/oudai-gadhi/cloud-native-claims-platform/frontend:cd1a55bc517231c1c86d5ca16801346d652879cd
+        image: ghcr.io/oudai-gadhi/full-devsecops-project/frontend:a240e6623a8ddb69c6b5ab047dad2d830ffc9a96
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
