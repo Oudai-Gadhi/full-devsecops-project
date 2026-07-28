@@ -35,10 +35,10 @@ load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 # --------------------------------------------------------------------------
 # Config
 # --------------------------------------------------------------------------
-BACKEND_IMAGE_REPO = "ghcr.io/oudai-gadhi/cloud-native-claims-platform/backend"
-FRONTEND_IMAGE_REPO = "ghcr.io/oudai-gadhi/cloud-native-claims-platform/frontend"
-BACKEND_DEPLOYMENT_YAML = "/home/oudai/k8s/backend/deployment.yaml"
-FRONTEND_DEPLOYMENT_YAML = "/home/oudai/k8s/frontend/deployment.yaml"
+BACKEND_IMAGE_REPO = "ghcr.io/oudai-gadhi/full-devsecops-project/backend"
+FRONTEND_IMAGE_REPO = "ghcr.io/oudai-gadhi/full-devsecops-project/frontend"
+BACKEND_DEPLOYMENT_YAML = "/home/oudai/full_proj/k8s/backend/deployment.yaml"
+FRONTEND_DEPLOYMENT_YAML = "/home/oudai/full_proj/k8s/frontend/deployment.yaml"
 
 NAMESPACES = ["devsecops", "av-scanning"]
 # Risk Accepted removed as a selectable disposition - Ignored (with justification) and
@@ -113,26 +113,33 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 st.set_page_config(page_title="Aegis — DevSecOps Control Center", layout="wide", page_icon="🛡️", initial_sidebar_state="expanded")
 
 # --------------------------------------------------------------------------
-# Design tokens — light, enterprise SecOps theme (Slate / Indigo)
+# Design tokens — premium enterprise SecOps theme (Slate / Indigo)
 # --------------------------------------------------------------------------
-BG = "#F4F6F9"
-SIDEBAR_BG = "#FFFFFF"
+BG = "#EEF1F7"
+BG_GRADIENT = "linear-gradient(135deg, #EEF1F7 0%, #E8ECF4 40%, #F0F2FA 100%)"
+SIDEBAR_BG = "rgba(255,255,255,0.92)"
 SURFACE = "#FFFFFF"
 SURFACE_ALT = "#F8FAFC"
-BORDER = "rgba(15,23,42,0.09)"
-BORDER_STRONG = "rgba(15,23,42,0.16)"
+SURFACE_ELEVATED = "rgba(255,255,255,0.88)"
+BORDER = "rgba(15,23,42,0.08)"
+BORDER_STRONG = "rgba(15,23,42,0.14)"
 TEXT = "#0F172A"
 TEXT_MUTED = "#475569"
 TEXT_FAINT = "#64748B"
 ACCENT = "#4338CA"
+ACCENT_LIGHT = "#6366F1"
 ACCENT_SOFT = "rgba(67,56,202,0.09)"
+ACCENT_GLOW = "rgba(99,102,241,0.18)"
 SUCCESS = "#059669"
 SUCCESS_SOFT = "rgba(5,150,105,0.10)"
 WARNING = "#D97706"
 DANGER = "#DC2626"
 CRITICAL = "#9F1239"
 NEUTRAL = "#64748B"
-CHART_GRID = "rgba(15,23,42,0.06)"
+CHART_GRID = "rgba(15,23,42,0.05)"
+SHADOW_SM = "0 1px 3px rgba(15,23,42,0.04), 0 1px 2px rgba(15,23,42,0.03)"
+SHADOW_MD = "0 4px 16px rgba(15,23,42,0.06), 0 2px 6px rgba(15,23,42,0.04)"
+SHADOW_LG = "0 12px 40px rgba(15,23,42,0.08), 0 4px 12px rgba(15,23,42,0.04)"
 
 # Ordered, colorblind-considerate palette used across every chart so severity
 # colors are always consistent between the KPI pills and the plotly figures.
@@ -166,16 +173,26 @@ def inject_css():
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
         html, body, [class*="css"] {{ font-family: 'Inter', -apple-system, sans-serif; }}
-        .stApp {{ background: {BG}; color: {TEXT}; }}
+        .stApp {{
+            background: {BG_GRADIENT}; color: {TEXT};
+            background-attachment: fixed;
+        }}
+        .stApp::before {{
+            content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 10% -10%, {ACCENT_GLOW}, transparent 55%),
+                radial-gradient(ellipse 60% 40% at 95% 5%, rgba(5,150,105,0.06), transparent 50%);
+        }}
+        section.main {{ position: relative; z-index: 1; }}
         h1, h2, h3, h4 {{ font-family: 'Inter', sans-serif !important; color: {TEXT} !important; letter-spacing: -0.015em; font-weight: 700 !important; }}
         code, pre, .stCode {{ font-family: 'JetBrains Mono', monospace !important; }}
         p, span, div {{ letter-spacing: -0.002em; }}
         ::selection {{ background: {ACCENT_SOFT}; }}
 
         /* ---- layout ---- */
-        .block-container {{ padding-top: 1.4rem; padding-bottom: 3rem; max-width: 1440px; }}
+        .block-container {{ padding-top: 1.2rem; padding-bottom: 3rem; max-width: 1480px; }}
         section[data-testid="stSidebar"] > div {{ padding-top: 1.2rem; }}
-        section.main > div {{ background: {BG}; }}
+        section.main > div {{ background: transparent; }}
 
         /* ---- header ---- */
         .eyebrow {{
@@ -186,16 +203,181 @@ def inject_css():
         .aegis-title {{ font-size: 1.9rem; font-weight: 800; margin: 0; line-height: 1.15; color: {TEXT}; }}
         .aegis-subtitle {{ color: {TEXT_MUTED}; font-size: 0.88rem; margin-top: 2px; }}
         .aegis-logo-row {{ display:flex; align-items:center; gap:8px; }}
+        .aegis-shield {{
+            width: 36px; height: 36px; border-radius: 10px;
+            background: linear-gradient(135deg, {ACCENT} 0%, {ACCENT_LIGHT} 100%);
+            display: inline-flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; box-shadow: 0 4px 14px {ACCENT_GLOW};
+        }}
         .section-heading {{
             font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
             color: {TEXT_MUTED}; margin: 22px 0 10px 0; display:flex; align-items:center; gap:8px;
         }}
-        .section-heading::after {{ content: ""; flex: 1; height: 1px; background: {BORDER}; }}
+        .section-heading::after {{ content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, {BORDER}, transparent); }}
+
+        /* ---- hero KPI strip ---- */
+        .kpi-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 4px; }}
+        .kpi-grid-5 {{ grid-template-columns: repeat(5, 1fr) !important; }}
+        .hero-kpi {{
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 14px;
+            padding: 16px 18px; position: relative; overflow: hidden;
+            box-shadow: {SHADOW_SM}; transition: transform 0.18s ease, box-shadow 0.18s ease;
+            animation: fadeUp 0.45s ease both;
+        }}
+        .hero-kpi:hover {{ transform: translateY(-2px); box-shadow: {SHADOW_MD}; }}
+        .hero-kpi::before {{
+            content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+            background: var(--kpi-accent, {ACCENT}); border-radius: 14px 0 0 14px;
+        }}
+        .hero-kpi::after {{
+            content: ""; position: absolute; right: -20px; top: -20px; width: 80px; height: 80px;
+            border-radius: 50%; background: var(--kpi-glow, {ACCENT_SOFT}); opacity: 0.5;
+        }}
+        .hero-kpi-label {{
+            font-family: 'JetBrains Mono', monospace; font-size: 0.64rem;
+            letter-spacing: 0.08em; text-transform: uppercase; color: {TEXT_MUTED};
+            position: relative; z-index: 1;
+        }}
+        .hero-kpi-value {{
+            font-size: 1.85rem; font-weight: 800; color: {TEXT}; line-height: 1.1;
+            margin: 4px 0 2px 0; position: relative; z-index: 1;
+        }}
+        .hero-kpi-delta {{
+            font-size: 0.72rem; font-weight: 600; position: relative; z-index: 1;
+            color: var(--kpi-delta-color, {TEXT_FAINT});
+        }}
+        .hero-kpi-icon {{
+            position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+            font-size: 1.6rem; opacity: 0.12; z-index: 0;
+        }}
+
+        /* ---- status banner ---- */
+        .status-banner {{
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;
+            padding: 10px 16px; margin: 10px 0 6px 0; box-shadow: {SHADOW_SM};
+            animation: fadeUp 0.5s ease both;
+        }}
+        .status-chip {{
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 0.75rem; font-weight: 600; color: {TEXT_MUTED};
+            font-family: 'JetBrains Mono', monospace;
+        }}
+        .status-chip .dot {{
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--chip-color, {SUCCESS});
+            box-shadow: 0 0 0 3px var(--chip-glow, {SUCCESS_SOFT});
+        }}
+
+        /* ---- login screen ---- */
+        .login-page .block-container {{
+            max-width: 1200px; padding-top: 2rem; padding-bottom: 2rem;
+        }}
+        .login-page section[data-testid="stSidebar"],
+        .login-page header[data-testid="stHeader"],
+        .login-page [data-testid="stToolbar"],
+        .login-page footer {{ display: none !important; }}
+        .login-page .stApp {{ background: {BG_GRADIENT}; }}
+
+        .login-split {{
+            display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+            align-items: center; min-height: 78vh; padding: 24px 0;
+        }}
+        @media (max-width: 900px) {{
+            .login-split {{ grid-template-columns: 1fr; min-height: auto; gap: 28px; }}
+            .login-hero {{ text-align: center !important; }}
+            .login-features {{ margin: 0 auto; }}
+        }}
+
+        .login-hero {{ padding-right: 12px; }}
+        .login-hero-title {{
+            font-size: 2.4rem; font-weight: 800; line-height: 1.12; color: {TEXT};
+            margin: 16px 0 10px 0; letter-spacing: -0.02em;
+        }}
+        .login-hero-desc {{
+            color: {TEXT_MUTED}; font-size: 1rem; line-height: 1.55; max-width: 420px;
+        }}
+        .login-features {{
+            margin-top: 28px; display: flex; flex-direction: column; gap: 14px;
+        }}
+        .login-feature {{
+            display: flex; align-items: flex-start; gap: 12px;
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;
+            padding: 14px 16px; box-shadow: {SHADOW_SM};
+        }}
+        .login-feature-icon {{
+            width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+            background: {ACCENT_SOFT}; color: {ACCENT};
+            display: flex; align-items: center; justify-content: center; font-size: 1rem;
+        }}
+        .login-feature-title {{ font-weight: 700; font-size: 0.88rem; color: {TEXT}; }}
+        .login-feature-desc {{ font-size: 0.78rem; color: {TEXT_FAINT}; margin-top: 2px; line-height: 1.4; }}
+
+        .login-card {{
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 20px;
+            padding: 36px 32px 28px 32px; box-shadow: {SHADOW_LG};
+            animation: fadeUp 0.55s ease both;
+        }}
+        .login-card-header {{
+            margin-bottom: 24px;
+        }}
+        .login-card-title {{
+            font-size: 1.35rem; font-weight: 800; color: {TEXT}; margin: 0 0 4px 0;
+        }}
+        .login-card-sub {{
+            font-size: 0.85rem; color: {TEXT_MUTED};
+        }}
+        .login-field-label {{
+            font-size: 0.78rem; font-weight: 600; color: {TEXT};
+            margin-bottom: 6px; margin-top: 4px;
+        }}
+        .login-footer {{
+            margin-top: 20px; padding-top: 16px; border-top: 1px solid {BORDER};
+            font-size: 0.72rem; color: {TEXT_FAINT}; text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }}
+        .login-page .stTextInput input {{
+            padding: 11px 14px !important; border-radius: 10px !important;
+            border: 1px solid {BORDER_STRONG} !important; font-size: 0.92rem !important;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+        }}
+        .login-page .stTextInput input:focus {{
+            border-color: {ACCENT} !important;
+            box-shadow: 0 0 0 3px {ACCENT_SOFT} !important;
+        }}
+        .login-page .stFormSubmitButton button {{
+            margin-top: 8px; padding: 11px 16px !important; border-radius: 10px !important;
+            font-weight: 700 !important; font-size: 0.92rem !important;
+        }}
+        .login-trust {{
+            display: flex; gap: 16px; margin-top: 24px; flex-wrap: wrap;
+        }}
+        .login-trust-item {{
+            font-size: 0.72rem; color: {TEXT_FAINT}; font-family: 'JetBrains Mono', monospace;
+            display: flex; align-items: center; gap: 6px;
+        }}
+        .login-trust-item span {{ color: {SUCCESS}; }}
+
+        .login-wrap {{
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 20px;
+            padding: 36px 32px 28px 32px; box-shadow: {SHADOW_LG};
+            backdrop-filter: blur(12px); animation: fadeUp 0.6s ease both;
+        }}
+
+        @keyframes fadeUp {{
+            from {{ opacity: 0; transform: translateY(10px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
+        }}
+        @keyframes shimmer {{
+            0% {{ background-position: -200% 0; }}
+            100% {{ background-position: 200% 0; }}
+        }}
 
         /* ---- sidebar ---- */
         section[data-testid="stSidebar"] {{
             background: {SIDEBAR_BG} !important; border-right: 1px solid {BORDER};
-            box-shadow: 2px 0 12px rgba(15,23,42,0.03);
+            box-shadow: 4px 0 24px rgba(15,23,42,0.04);
+            backdrop-filter: blur(16px);
         }}
         section[data-testid="stSidebar"] .stButton > button {{
             width: 100%; justify-content: flex-start !important; text-align: left;
@@ -258,22 +440,35 @@ def inject_css():
 
         /* ---- chart / KPI panel cards ---- */
         .panel-card {{
-            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;
-            padding: 16px 18px 6px 18px; margin-bottom: 14px; height: 100%;
-            box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 14px;
+            padding: 18px 20px 8px 20px; margin-bottom: 14px; height: 100%;
+            box-shadow: {SHADOW_SM}; position: relative; overflow: hidden;
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            animation: fadeUp 0.45s ease both;
         }}
-        .panel-title {{ font-weight: 700; font-size: 0.85rem; color: {TEXT}; margin-bottom: 2px; }}
-        .panel-sub {{ font-size: 0.72rem; color: {TEXT_FAINT}; margin-bottom: 4px; }}
+        .panel-card:hover {{ transform: translateY(-1px); box-shadow: {SHADOW_MD}; }}
+        .panel-card::before {{
+            content: ""; position: absolute; top: 0; left: 20px; right: 20px; height: 3px;
+            border-radius: 0 0 4px 4px;
+            background: linear-gradient(90deg, {ACCENT}, {ACCENT_LIGHT});
+            opacity: 0.85;
+        }}
+        .panel-title {{ font-weight: 700; font-size: 0.88rem; color: {TEXT}; margin-bottom: 2px; margin-top: 4px; }}
+        .panel-sub {{ font-size: 0.72rem; color: {TEXT_FAINT}; margin-bottom: 6px; }}
 
         /* ---- cards (rows: pods, findings, deployments, av) ---- */
         .spine-card {{
             background: {SURFACE}; border: 1px solid {BORDER};
             border-left: 3px solid var(--spine-color, {NEUTRAL});
-            border-radius: 10px; padding: 13px 17px; margin-bottom: 9px;
-            box-shadow: 0 1px 2px rgba(15,23,42,0.03);
-            transition: border-color 0.12s ease, box-shadow 0.12s ease;
+            border-radius: 12px; padding: 14px 18px; margin-bottom: 9px;
+            box-shadow: {SHADOW_SM};
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+            animation: fadeUp 0.35s ease both;
         }}
-        .spine-card:hover {{ border-color: {BORDER_STRONG}; box-shadow: 0 2px 6px rgba(15,23,42,0.06); }}
+        .spine-card:hover {{
+            border-color: {BORDER_STRONG}; box-shadow: {SHADOW_MD};
+            transform: translateX(2px);
+        }}
         .spine-card .row {{ display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }}
         .spine-title {{ font-weight: 600; font-size: 0.95rem; color: {TEXT}; }}
         .spine-sub {{ font-family: 'JetBrains Mono', monospace; color: {TEXT_MUTED}; font-size: 0.76rem; }}
@@ -285,18 +480,31 @@ def inject_css():
         }}
 
         .pulse-dot {{
-            display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+            display: inline-block; width: 8px; height: 8px; border-radius: 50%;
             background: {SUCCESS}; margin-right: 6px;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.4);
         }}
         @keyframes pulse {{
             0% {{ box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.45); }}
-            70% {{ box-shadow: 0 0 0 8px rgba(5, 150, 105, 0); }}
+            70% {{ box-shadow: 0 0 0 10px rgba(5, 150, 105, 0); }}
             100% {{ box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); }}
         }}
+        .pulse-dot-warn {{ background: {WARNING}; animation-name: pulseWarn; }}
+        @keyframes pulseWarn {{
+            0% {{ box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.45); }}
+            70% {{ box-shadow: 0 0 0 10px rgba(217, 119, 6, 0); }}
+            100% {{ box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }}
+        }}
+        .pulse-dot-danger {{ background: {DANGER}; animation-name: pulseDanger; }}
+        @keyframes pulseDanger {{
+            0% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.45); }}
+            70% {{ box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }}
+            100% {{ box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }}
+        }}
 
-        .sev-bar {{ display: flex; height: 7px; border-radius: 4px; overflow: hidden; background: {BORDER}; margin: 6px 0; }}
-        .sev-bar-seg {{ height: 100%; }}
+        .sev-bar {{ display: flex; height: 8px; border-radius: 6px; overflow: hidden; background: {BORDER}; margin: 8px 0; box-shadow: inset 0 1px 2px rgba(15,23,42,0.04); }}
+        .sev-bar-seg {{ height: 100%; transition: width 0.4s ease; }}
         .sev-legend {{ display: flex; gap: 11px; flex-wrap: wrap; font-size: 0.7rem; color: {TEXT_MUTED}; font-family: 'JetBrains Mono', monospace; }}
         .sev-legend .dot {{ display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 4px; }}
 
@@ -305,10 +513,47 @@ def inject_css():
         /* ---- dataframe / table polish ---- */
         div[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 10px; overflow: hidden; }}
 
-        /* ---- tabs (st.tabs) ---- */
-        button[data-baseweb="tab"] {{ font-weight: 600; color: {TEXT_MUTED}; }}
-        button[data-baseweb="tab"][aria-selected="true"] {{ color: {ACCENT}; }}
-        div[data-baseweb="tab-highlight"] {{ background-color: {ACCENT} !important; }}
+        /* ---- tabs (st.tabs) — segmented control style ---- */
+        .stTabs [data-baseweb="tab-list"] {{
+            gap: 6px; background: {SURFACE_ALT}; border: 1px solid {BORDER};
+            border-radius: 12px; padding: 5px; margin-bottom: 16px;
+            box-shadow: inset 0 1px 2px rgba(15,23,42,0.03);
+        }}
+        .stTabs [data-baseweb="tab"] {{
+            height: 38px; border-radius: 8px; font-weight: 600; font-size: 0.82rem;
+            color: {TEXT_MUTED}; background: transparent; border: none;
+            padding: 0 16px; transition: all 0.15s ease;
+        }}
+        .stTabs [data-baseweb="tab"]:hover {{
+            color: {TEXT}; background: rgba(255,255,255,0.6);
+        }}
+        .stTabs [aria-selected="true"] {{
+            background: {SURFACE} !important; color: {ACCENT} !important;
+            box-shadow: {SHADOW_SM}; font-weight: 700 !important;
+        }}
+        .stTabs [data-baseweb="tab-highlight"] {{ display: none !important; }}
+        .stTabs [data-baseweb="tab-border"] {{ display: none !important; }}
+        .analytics-tab-body {{ padding-top: 4px; }}
+        .analytics-shell {{
+            background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 16px;
+            padding: 18px 20px 8px 20px; margin-bottom: 18px; box-shadow: {SHADOW_SM};
+        }}
+        .content-toolbar {{
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap;
+            gap: 10px; background: {SURFACE}; border: 1px solid {BORDER}; border-radius: 12px;
+            padding: 12px 16px; margin-bottom: 14px; box-shadow: {SHADOW_SM};
+        }}
+        .content-toolbar-title {{
+            font-weight: 700; font-size: 0.88rem; color: {TEXT};
+        }}
+        .content-toolbar-sub {{
+            font-size: 0.72rem; color: {TEXT_FAINT}; margin-top: 2px;
+        }}
+        .page-footer {{
+            margin-top: 32px; padding-top: 16px; border-top: 1px solid {BORDER};
+            font-size: 0.72rem; color: {TEXT_FAINT}; text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+        }}
 
         /* ---- inputs ---- */
         .stTextInput input, .stSelectbox div[data-baseweb="select"], .stDateInput input, .stMultiSelect div[data-baseweb="select"] {{
@@ -319,6 +564,7 @@ def inject_css():
         @media (max-width: 900px) {{
             .block-container {{ padding-left: 0.9rem; padding-right: 0.9rem; }}
             .aegis-title {{ font-size: 1.5rem; }}
+            .kpi-grid, .kpi-grid-5 {{ grid-template-columns: 1fr !important; }}
         }}
         </style>
         """,
@@ -326,25 +572,63 @@ def inject_css():
     )
 
 
+def content_toolbar(title, subtitle="", actions_html=""):
+    """Unified toolbar for list sections."""
+    sub = f'<div class="content-toolbar-sub">{subtitle}</div>' if subtitle else ""
+    return (
+        f'<div class="content-toolbar">'
+        f'<div><div class="content-toolbar-title">{title}</div>{sub}</div>'
+        f'{actions_html}'
+        f'</div>'
+    )
+
+
+def hero_kpi(label, value, accent=ACCENT, delta="", delta_color=None, icon="📊", glow=None):
+    """Custom HTML KPI card for the header strip."""
+    delta_html = f'<div class="hero-kpi-delta" style="--kpi-delta-color:{delta_color or TEXT_FAINT};">{delta}</div>' if delta else ""
+    return (
+        f'<div class="hero-kpi" style="--kpi-accent:{accent}; --kpi-glow:{glow or accent + "18"};">'
+        f'<div class="hero-kpi-icon">{icon}</div>'
+        f'<div class="hero-kpi-label">{label}</div>'
+        f'<div class="hero-kpi-value">{value}</div>{delta_html}</div>'
+    )
+
+
+def status_banner(chips):
+    """chips: list of (label, color) tuples."""
+    items = "".join(
+        f'<span class="status-chip" style="--chip-color:{c}; --chip-glow:{c}22;"><span class="dot"></span>{lbl}</span>'
+        for lbl, c in chips
+    )
+    return f'<div class="status-banner">{items}</div>'
+
+
 # --------------------------------------------------------------------------
 # Chart theming — shared Plotly layout so every figure matches the dashboard
 # --------------------------------------------------------------------------
 CHART_FONT = dict(family="Inter, -apple-system, sans-serif", color=TEXT_MUTED, size=12)
+PLOTLY_CONFIG = {"displayModeBar": False, "responsive": True}
+
+
+def _hex_rgba(hex_color, alpha=0.12):
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2],16)},{int(h[2:4],16)},{int(h[4:6],16)},{alpha})"
 
 
 def _themed_layout(fig, height=230, show_legend=False, margin=None):
     fig.update_layout(
         height=height,
-        margin=margin or dict(l=8, r=8, t=8, b=8),
+        margin=margin or dict(l=12, r=12, t=12, b=12),
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         font=CHART_FONT,
         showlegend=show_legend,
         legend=dict(orientation="h", yanchor="bottom", y=-0.28, font=dict(size=11), bgcolor="rgba(0,0,0,0)"),
-        hoverlabel=dict(bgcolor=SURFACE, font_family="Inter", bordercolor=BORDER),
+        hoverlabel=dict(bgcolor=SURFACE, font_family="Inter", bordercolor=BORDER, font_size=12),
+        hovermode="closest",
     )
-    fig.update_xaxes(showgrid=False, zeroline=False, linecolor=BORDER, tickfont=dict(size=10.5))
-    fig.update_yaxes(showgrid=True, gridcolor=CHART_GRID, zeroline=False, tickfont=dict(size=10.5))
+    fig.update_xaxes(showgrid=False, zeroline=False, linecolor=BORDER, tickfont=dict(size=10.5), showline=False)
+    fig.update_yaxes(showgrid=True, gridcolor=CHART_GRID, zeroline=False, tickfont=dict(size=10.5), showline=False)
     return fig
 
 
@@ -356,42 +640,121 @@ def donut_chart(counts, color_map, center_label="", center_sub=""):
         return None
     colors = [color_map.get(l, NEUTRAL) for l in labels]
     fig = go.Figure(data=[go.Pie(
-        labels=labels, values=values, hole=0.68, marker=dict(colors=colors, line=dict(color=SURFACE, width=2)),
-        sort=False, textinfo="none", hovertemplate="%{label}: %{value} (%{percent})<extra></extra>",
+        labels=labels, values=values, hole=0.72,
+        marker=dict(colors=colors, line=dict(color=SURFACE, width=3)),
+        sort=False, textinfo="none",
+        hovertemplate="<b>%{label}</b><br>%{value} (%{percent})<extra></extra>",
+        pull=[0.02 if v == max(values) else 0 for v in values],
     )])
     total = sum(values)
     fig.update_layout(
         annotations=[
-            dict(text=f"<b>{total}</b>", x=0.5, y=0.58, font=dict(size=22, color=TEXT), showarrow=False),
-            dict(text=center_sub or center_label, x=0.5, y=0.38, font=dict(size=10.5, color=TEXT_FAINT), showarrow=False),
+            dict(text=f"<b>{total}</b>", x=0.5, y=0.56, font=dict(size=26, color=TEXT, family="Inter"), showarrow=False),
+            dict(text=center_sub or center_label, x=0.5, y=0.38, font=dict(size=10, color=TEXT_FAINT, family="Inter"), showarrow=False),
         ],
     )
-    return _themed_layout(fig, height=210, show_legend=True, margin=dict(l=8, r=8, t=8, b=28))
+    return _themed_layout(fig, height=220, show_legend=True, margin=dict(l=8, r=8, t=8, b=32))
 
 
 def bar_chart(x, y, colors=None, horizontal=False, height=230):
     if not x:
         return None
+    bar_colors = colors if isinstance(colors, list) else [colors or ACCENT] * len(x)
     if horizontal:
-        fig = go.Figure(go.Bar(y=x, x=y, orientation="h", marker=dict(color=colors or ACCENT, line=dict(width=0)),
-                                hovertemplate="%{y}: %{x}<extra></extra>"))
+        fig = go.Figure(go.Bar(
+            y=x, x=y, orientation="h",
+            marker=dict(color=bar_colors, line=dict(width=0), cornerradius=4),
+            hovertemplate="<b>%{y}</b><br>%{x}<extra></extra>",
+        ))
         fig.update_yaxes(autorange="reversed")
     else:
-        fig = go.Figure(go.Bar(x=x, y=y, marker=dict(color=colors or ACCENT, line=dict(width=0)),
-                                hovertemplate="%{x}: %{y}<extra></extra>"))
+        fig = go.Figure(go.Bar(
+            x=x, y=y,
+            marker=dict(color=bar_colors, line=dict(width=0), cornerradius=6),
+            hovertemplate="<b>%{x}</b><br>%{y}<extra></extra>",
+        ))
     return _themed_layout(fig, height=height)
 
 
-def trend_chart(x, y, color=ACCENT, fill=True, height=230):
+def trend_chart(x, y, color=ACCENT, fill=True, height=230, name=""):
     if not x:
         return None
     fig = go.Figure(go.Scatter(
-        x=x, y=y, mode="lines+markers", line=dict(color=color, width=2.5, shape="spline"),
-        marker=dict(size=5, color=color), fill="tozeroy" if fill else None,
-        fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.10)" if fill else None,
-        hovertemplate="%{x}: %{y}<extra></extra>",
+        x=x, y=y, mode="lines+markers", name=name or "Count",
+        line=dict(color=color, width=2.8, shape="spline", smoothing=1.1),
+        marker=dict(size=6, color=color, line=dict(color=SURFACE, width=1.5)),
+        fill="tozeroy" if fill else None,
+        fillcolor=_hex_rgba(color, 0.14) if fill else None,
+        hovertemplate="%{x}<br><b>%{y}</b><extra></extra>",
     ))
     return _themed_layout(fig, height=height)
+
+
+def gauge_chart(value, title="", max_val=100, color=SUCCESS, height=220):
+    """Semicircle gauge for security posture / health scores."""
+    fig = go.Figure(go.Indicator(
+        mode="gauge+number",
+        value=value,
+        number=dict(font=dict(size=32, color=TEXT, family="Inter"), suffix="%"),
+        title=dict(text=title, font=dict(size=11, color=TEXT_FAINT, family="Inter")),
+        gauge=dict(
+            axis=dict(range=[0, max_val], tickwidth=0, tickcolor=BORDER, tickfont=dict(size=9, color=TEXT_FAINT)),
+            bar=dict(color=color, thickness=0.22, line=dict(color=SURFACE, width=1)),
+            bgcolor="rgba(0,0,0,0)",
+            borderwidth=0,
+            steps=[
+                dict(range=[0, 40], color=_hex_rgba(DANGER, 0.15)),
+                dict(range=[40, 70], color=_hex_rgba(WARNING, 0.12)),
+                dict(range=[70, 100], color=_hex_rgba(SUCCESS, 0.12)),
+            ],
+            threshold=dict(line=dict(color=DANGER, width=2), thickness=0.8, value=85),
+        ),
+    ))
+    return _themed_layout(fig, height=height, margin=dict(l=24, r=24, t=36, b=8))
+
+
+def stacked_bar_chart(categories, series_data, height=240):
+    """series_data: dict of series_name -> list of values aligned to categories."""
+    if not categories or not series_data:
+        return None
+    fig = go.Figure()
+    for name, values in series_data.items():
+        fig.add_trace(go.Bar(
+            name=name, x=categories, y=values,
+            marker=dict(color=STATE_COLOR.get(name, NEUTRAL), line=dict(width=0), cornerradius=3),
+            hovertemplate=f"<b>{name}</b><br>%{{x}}: %{{y}}<extra></extra>",
+        ))
+    fig.update_layout(barmode="stack")
+    return _themed_layout(fig, height=height, show_legend=True, margin=dict(l=12, r=12, t=12, b=36))
+
+
+def heatmap_chart(x_labels, y_labels, z_matrix, height=240):
+    if not z_matrix or not x_labels or not y_labels:
+        return None
+    fig = go.Figure(go.Heatmap(
+        z=z_matrix, x=x_labels, y=y_labels,
+        colorscale=[[0, SURFACE_ALT], [0.3, _hex_rgba(WARNING, 0.4)], [0.7, _hex_rgba(DANGER, 0.6)], [1, CRITICAL]],
+        showscale=False,
+        hovertemplate="<b>%{y}</b> × %{x}<br>Count: %{z}<extra></extra>",
+        xgap=3, ygap=3,
+    ))
+    fig.update_layout(
+        xaxis=dict(side="bottom", tickfont=dict(size=10)),
+        yaxis=dict(autorange="reversed", tickfont=dict(size=10)),
+    )
+    return _themed_layout(fig, height=height, margin=dict(l=12, r=12, t=12, b=12))
+
+
+def sparkline_chart(x, y, color=ACCENT, height=48):
+    if not x or len(x) < 2:
+        return None
+    fig = go.Figure(go.Scatter(
+        x=x, y=y, mode="lines",
+        line=dict(color=color, width=2, shape="spline"),
+        fill="tozeroy", fillcolor=_hex_rgba(color, 0.12),
+        hoverinfo="skip",
+    ))
+    return _themed_layout(fig, height=height, margin=dict(l=0, r=0, t=0, b=0))
 
 
 def panel_open(title, sub=""):
@@ -401,6 +764,36 @@ def panel_open(title, sub=""):
 
 def panel_close():
     st.markdown("</div>", unsafe_allow_html=True)
+
+
+def chart_panel(title, sub, fig, chart_key=None):
+    """Render one chart inside a panel card."""
+    panel_open(title, sub)
+    if fig:
+        kwargs = {"use_container_width": True, "config": PLOTLY_CONFIG}
+        if chart_key:
+            kwargs["key"] = chart_key
+        st.plotly_chart(fig, **kwargs)
+    else:
+        st.caption("No data available for this view.")
+    panel_close()
+
+
+def analytics_shell_open(title="Analytics"):
+    st.markdown(f'<div class="analytics-shell"><div class="panel-title" style="margin-bottom:12px;">{title}</div>', unsafe_allow_html=True)
+
+
+def analytics_shell_close():
+    st.markdown("</div>", unsafe_allow_html=True)
+
+
+def two_chart_row(left_fn, right_fn):
+    """Run two chart render callbacks side by side."""
+    c1, c2 = st.columns(2)
+    with c1:
+        left_fn()
+    with c2:
+        right_fn()
 
 
 def section_heading(text):
@@ -599,23 +992,94 @@ def restore_session_from_url():
 
 def login_screen():
     inject_css()
-    st.markdown("<div style='height:14vh'></div>", unsafe_allow_html=True)
-    _, mid, _ = st.columns([1, 1.1, 1])
-    with mid:
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stSidebar"], header[data-testid="stHeader"],
+        [data-testid="stToolbar"], footer { display: none !important; }
+        .main .block-container { max-width: 1180px; padding-top: 1.5rem; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="login-page">', unsafe_allow_html=True)
+
+    hero_col, form_col = st.columns([1.05, 0.95], gap="large")
+
+    with hero_col:
         st.markdown(
-            '<div class="aegis-logo-row"><span class="eyebrow">Security Operations</span></div>',
+            f"""
+            <div class="login-hero">
+                <div class="aegis-logo-row">
+                    <span class="aegis-shield">🛡️</span>
+                    <span class="eyebrow">Enterprise SecOps</span>
+                </div>
+                <div class="login-hero-title">Secure your pipeline.<br>Deploy with confidence.</div>
+                <div class="login-hero-desc">
+                    AEGIS unifies pod health, security findings triage, and antivirus results
+                    in one production-ready control center.
+                </div>
+                <div class="login-features">
+                    <div class="login-feature">
+                        <div class="login-feature-icon">🔍</div>
+                        <div>
+                            <div class="login-feature-title">Security findings triage</div>
+                            <div class="login-feature-desc">Semgrep, Gitleaks, Trivy &amp; ZAP — disposition, AI fixes, deploy gates.</div>
+                        </div>
+                    </div>
+                    <div class="login-feature">
+                        <div class="login-feature-icon">☸️</div>
+                        <div>
+                            <div class="login-feature-title">Live Kubernetes visibility</div>
+                            <div class="login-feature-desc">Pod health, logs, and controlled restarts across monitored namespaces.</div>
+                        </div>
+                    </div>
+                    <div class="login-feature">
+                        <div class="login-feature-icon">🛡️</div>
+                        <div>
+                            <div class="login-feature-title">AV scan intelligence</div>
+                            <div class="login-feature-desc">ClamAV &amp; YARA results with trend analytics and clean-rate tracking.</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="login-trust">
+                    <div class="login-trust-item"><span>●</span> Encrypted sessions</div>
+                    <div class="login-trust-item"><span>●</span> Role-based access</div>
+                    <div class="login-trust-item"><span>●</span> Audit-ready logs</div>
+                </div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-        st.markdown('<div class="aegis-title">AEGIS</div>', unsafe_allow_html=True)
+
+    with form_col:
         st.markdown(
-            '<div class="aegis-subtitle">Deployment security &amp; pod health control center</div><br>',
+            """
+            <div class="login-card">
+                <div class="login-card-header">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+                        <span class="aegis-shield" style="width:40px;height:40px;font-size:1.15rem;">🛡️</span>
+                        <div>
+                            <div class="login-card-title" style="margin:0;">Welcome back</div>
+                            <div class="login-card-sub">Sign in to your AEGIS workspace</div>
+                        </div>
+                    </div>
+                </div>
+            """,
             unsafe_allow_html=True,
         )
-        with st.container(border=True):
-            with st.form("login_form"):
-                username = st.text_input("Username")
-                password = st.text_input("Password", type="password")
-                submitted = st.form_submit_button("Log in", use_container_width=True, type="primary", icon=":material/login:")
+        with st.form("login_form", clear_on_submit=False):
+            st.markdown('<div class="login-field-label">Username</div>', unsafe_allow_html=True)
+            username = st.text_input("Username", label_visibility="collapsed", placeholder="Enter your username")
+            st.markdown('<div class="login-field-label" style="margin-top:10px;">Password</div>', unsafe_allow_html=True)
+            password = st.text_input("Password", label_visibility="collapsed", type="password", placeholder="Enter your password")
+            st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+            submitted = st.form_submit_button("Sign in to AEGIS", use_container_width=True, type="primary", icon=":material/login:")
+        st.markdown(
+            '<div class="login-footer">🔒 Session persists 7 days · Credentials secured with bcrypt</div></div>',
+            unsafe_allow_html=True,
+        )
+
         if submitted:
             if check_login(username, password):
                 token = create_session(username)
@@ -625,7 +1089,9 @@ def login_screen():
                 st.query_params["token"] = token
                 st.rerun()
             else:
-                st.error("Invalid credentials.")
+                st.error("Invalid username or password. Please try again.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def logout():
@@ -709,6 +1175,40 @@ def restart_pod(namespace, name):
 # --------------------------------------------------------------------------
 # Pods tab
 # --------------------------------------------------------------------------
+def compute_security_posture(open_findings, total_findings):
+    """Weighted score 0–100: fewer open + lower severity = higher posture."""
+    if total_findings == 0:
+        return 100
+    weights = {"CRITICAL": 10, "HIGH": 5, "MEDIUM": 2, "LOW": 1, "INFO": 0.5}
+    max_penalty = sum(weights.values()) * max(total_findings, 1) * 0.15
+    penalty = sum(weights.get((f["severity"] or "INFO").upper(), 1) for f in open_findings)
+    score = max(0, min(100, 100 - (penalty / max(max_penalty, 1)) * 100))
+    return round(score)
+
+
+def posture_color(score):
+    if score >= 80:
+        return SUCCESS
+    if score >= 50:
+        return WARNING
+    return DANGER
+
+
+def deployment_timeline(deployments):
+    """Group deployments by day for trend chart."""
+    dated = []
+    for dep in deployments:
+        ts = dep.get("created_at")
+        if ts:
+            day = ts.date() if hasattr(ts, "date") else ts
+            dated.append(day)
+    if not dated:
+        return [], []
+    df = pd.DataFrame({"day": dated})
+    daily = df.groupby("day").size().reset_index(name="count").sort_values("day")
+    return daily["day"].astype(str).tolist(), daily["count"].tolist()
+
+
 def render_pod_card(namespace, p):
     st.markdown(
         f"""
@@ -792,18 +1292,93 @@ def render_pod_namespace(namespace):
         render_pod_card(namespace, p)
 
 
+def collect_all_pods():
+    """Aggregate pod data across all namespaces for overview charts."""
+    all_pods = []
+    cluster_ok = True
+    for ns in NAMESPACES:
+        pods, error = get_pods(ns)
+        if error == CLUSTER_UNREACHABLE:
+            cluster_ok = False
+            break
+        if error or not pods:
+            continue
+        for p in pods:
+            all_pods.append({**p, "namespace": ns})
+    return all_pods, cluster_ok
+
+
+def render_pods_overview():
+    """Cluster-wide pod health — tabbed analytics, max 2 charts per view."""
+    all_pods, cluster_ok = collect_all_pods()
+    if not cluster_ok:
+        st.markdown(
+            status_banner([("Cluster offline", DANGER), ("kubectl unreachable", NEUTRAL)]),
+            unsafe_allow_html=True,
+        )
+        return
+
+    if not all_pods:
+        st.info("No pods found across monitored namespaces.")
+        return
+
+    running = sum(1 for p in all_pods if p["phase"] == "Running")
+    unhealthy = len(all_pods) - running
+    phase_counts = {}
+    for p in all_pods:
+        phase_counts[p["phase"]] = phase_counts.get(p["phase"], 0) + 1
+    ns_counts = {}
+    for p in all_pods:
+        ns_counts[p["namespace"]] = ns_counts.get(p["namespace"], 0) + 1
+    health_pct = round((running / len(all_pods)) * 100) if all_pods else 0
+
+    st.markdown(status_banner([
+        (f"{running} running", SUCCESS),
+        (f"{unhealthy} not healthy", DANGER if unhealthy else NEUTRAL),
+        (f"{len(all_pods)} total pods", ACCENT),
+    ]), unsafe_allow_html=True)
+
+    analytics_shell_open("Cluster analytics")
+    tab_health, tab_workloads = st.tabs(["Health", "Workloads"])
+
+    with tab_health:
+        def _gauge():
+            chart_panel("Cluster health", "Percentage of pods in Running phase",
+                        gauge_chart(health_pct, title="Running pods", color=posture_color(health_pct), height=260))
+        def _phases():
+            ordered = [(ph, phase_counts.get(ph, 0)) for ph in ["Running", "Pending", "Succeeded", "Failed", "Unknown"]]
+            chart_panel("Pod phase distribution", f"{len(all_pods)} pods · {len(NAMESPACES)} namespaces",
+                        donut_chart(ordered, STATE_COLOR, center_sub="pods"))
+        two_chart_row(_gauge, _phases)
+
+    with tab_workloads:
+        ns_sorted = sorted(ns_counts.items(), key=lambda kv: kv[1], reverse=True)
+        if ns_sorted:
+            names = [n for n, _ in ns_sorted]
+            palette = [ACCENT, ACCENT_LIGHT, SUCCESS, WARNING][: len(names)]
+            chart_panel("Pods by namespace", "Workload distribution across monitored namespaces",
+                        bar_chart(names, [c for _, c in ns_sorted], colors=palette, height=280))
+        else:
+            st.caption("No namespace data available.")
+    analytics_shell_close()
+
+
 @st.fragment
 def pods_tab():
     top = st.columns([5, 1])
+    dot_class = "pulse-dot"
     top[0].markdown(
-        '<span class="pulse-dot"></span><span class="spine-sub">live snapshot via kubectl (cached briefly for speed)</span>',
+        f'<span class="{dot_class}"></span><span class="spine-sub">Live cluster snapshot via kubectl · cached {PODS_TTL}s</span>',
         unsafe_allow_html=True,
     )
     if top[1].button("Refresh", use_container_width=True, key="refresh_pods", icon=":material/refresh:"):
         invalidate_pods_cache()
         st.rerun()
-    st.markdown("<br>", unsafe_allow_html=True)
 
+    section_heading("Cluster overview")
+    render_pods_overview()
+
+    section_heading("Namespaces")
     cols = st.columns(len(NAMESPACES))
     for col, ns in zip(cols, NAMESPACES):
         with col:
@@ -1104,55 +1679,105 @@ def global_findings_search(deployments):
 
 
 def render_findings_overview(deployments, all_findings, open_findings):
-    """Three chart panels giving triage teams an at-a-glance read before they
-    scroll into individual deployments: severity mix, findings by tool, and
-    the packages generating the most open findings."""
-    col1, col2, col3 = st.columns(3)
+    """Tabbed security analytics — two charts max per view, no vertical stacking."""
+    total = len(all_findings)
+    posture = compute_security_posture(open_findings, total)
+    p_color = posture_color(posture)
 
-    with col1:
-        panel_open("Open findings by severity", f"{len(open_findings)} open across all deployments")
-        sev_counts = {}
-        for f in open_findings:
-            sev = (f["severity"] or "INFO").upper()
-            sev_counts[sev] = sev_counts.get(sev, 0) + 1
-        ordered = [(s, sev_counts.get(s, 0)) for s in SEVERITY_ORDER]
-        fig = donut_chart(ordered, STATE_COLOR, center_sub="open")
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        else:
-            st.caption("No open findings — clean slate.")
-        panel_close()
+    sev_counts = {}
+    for f in open_findings:
+        sev = (f["severity"] or "INFO").upper()
+        sev_counts[sev] = sev_counts.get(sev, 0) + 1
+    sev_ordered = [(s, sev_counts.get(s, 0)) for s in SEVERITY_ORDER]
 
-    with col2:
-        panel_open("Open findings by tool", "Semgrep · Gitleaks · Trivy · ZAP")
-        tool_counts = {}
-        for f in open_findings:
-            tool_counts[f["tool"]] = tool_counts.get(f["tool"], 0) + 1
-        tools_sorted = sorted(tool_counts.items(), key=lambda kv: kv[1], reverse=True)
-        if tools_sorted:
-            names = [t for t, _ in tools_sorted]
-            fig = bar_chart(names, [c for _, c in tools_sorted], colors=ACCENT, height=210)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        else:
-            st.caption("Nothing to chart yet.")
-        panel_close()
+    tool_counts = {}
+    for f in open_findings:
+        tool_counts[f["tool"]] = tool_counts.get(f["tool"], 0) + 1
+    tools_sorted = sorted(tool_counts.items(), key=lambda kv: kv[1], reverse=True)
 
-    with col3:
-        panel_open("Top affected packages", "Open findings, by package")
-        pkg_counts = {}
-        for f in open_findings:
-            pkg = f.get("package_name")
-            if pkg:
-                pkg_counts[pkg] = pkg_counts.get(pkg, 0) + 1
-        pkgs_sorted = sorted(pkg_counts.items(), key=lambda kv: kv[1], reverse=True)[:6]
-        if pkgs_sorted:
-            names = [p for p, _ in pkgs_sorted][::-1]
-            counts = [c for _, c in pkgs_sorted][::-1]
-            fig = bar_chart(names, counts, colors=CRITICAL, horizontal=True, height=210)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    pkg_counts = {}
+    for f in open_findings:
+        pkg = f.get("package_name")
+        if pkg:
+            pkg_counts[pkg] = pkg_counts.get(pkg, 0) + 1
+    pkgs_sorted = sorted(pkg_counts.items(), key=lambda kv: kv[1], reverse=True)[:6]
+
+    status_counts = {}
+    for f in all_findings:
+        s = (f["status"] or "OPEN").upper()
+        status_counts[s] = status_counts.get(s, 0) + 1
+    status_ordered = [(s, status_counts.get(s, 0)) for s in ["OPEN", "IGNORED", "POSTPONED", "RISK_ACCEPTED"]]
+
+    tools = sorted({f["tool"] for f in open_findings})
+    z_matrix = []
+    if tools and open_findings:
+        for sev in SEVERITY_ORDER:
+            z_matrix.append([
+                sum(1 for f in open_findings if f["tool"] == tool and (f["severity"] or "INFO").upper() == sev)
+                for tool in tools
+            ])
+
+    st.markdown(status_banner([
+        (f"Posture {posture}%", posture_color(posture)),
+        (f"{len(open_findings)} open", DANGER if open_findings else SUCCESS),
+        (f"{total} total findings", ACCENT),
+    ]), unsafe_allow_html=True)
+
+    analytics_shell_open("Security analytics")
+    tab_summary, tab_risk, tab_sources, tab_pipeline = st.tabs(
+        ["Summary", "Risk map", "Sources", "Pipeline"]
+    )
+
+    with tab_summary:
+        def _posture():
+            chart_panel("Security posture", f"Weighted score · {len(open_findings)} open findings",
+                        gauge_chart(posture, title="Posture index", color=p_color, height=260))
+        def _severity():
+            chart_panel("Open by severity", "Distribution across all deployments",
+                        donut_chart(sev_ordered, STATE_COLOR, center_sub="open"))
+        two_chart_row(_posture, _severity)
+
+    with tab_risk:
+        if tools and open_findings:
+            chart_panel("Severity × tool heatmap", "Where open risk concentrates — darker = more findings",
+                        heatmap_chart(tools, SEVERITY_ORDER, z_matrix, height=300))
         else:
-            st.caption("No package-level findings open.")
-        panel_close()
+            st.info("No open findings to map — your posture is clear.")
+
+    with tab_sources:
+        def _tools():
+            if tools_sorted:
+                names = [t for t, _ in tools_sorted]
+                colors = [ACCENT, ACCENT_LIGHT, CRITICAL, WARNING, SUCCESS][: len(names)]
+                chart_panel("Findings by scanner", "Semgrep · Gitleaks · Trivy · ZAP",
+                            bar_chart(names, [c for _, c in tools_sorted], colors=colors, height=260))
+            else:
+                st.caption("No scanner data yet.")
+        def _packages():
+            if pkgs_sorted:
+                names = [p for p, _ in pkgs_sorted][::-1]
+                counts = [c for _, c in pkgs_sorted][::-1]
+                colors = [CRITICAL if c >= 3 else DANGER if c >= 2 else WARNING for c in counts]
+                chart_panel("Top affected packages", "Open findings grouped by package",
+                            bar_chart(names, counts, colors=colors, horizontal=True, height=260))
+            else:
+                st.caption("No package-level findings open.")
+        two_chart_row(_tools, _packages)
+
+    with tab_pipeline:
+        def _timeline():
+            days, counts = deployment_timeline(deployments)
+            if days:
+                chart_panel("Deployment activity", "Builds recorded over time",
+                            trend_chart(days, counts, color=ACCENT_LIGHT, height=260))
+            else:
+                st.caption("No deployment history yet.")
+        def _status():
+            chart_panel("Findings by disposition", "Open · Ignored · Postponed",
+                        donut_chart(status_ordered, STATE_COLOR, center_sub="total"))
+        two_chart_row(_timeline, _status)
+
+    analytics_shell_close()
 
 
 @st.fragment
@@ -1174,21 +1799,31 @@ def security_findings_tab():
     all_findings = [f for dep in deployments for f in dep["findings"]]
     open_findings = [f for f in all_findings if (f["status"] or "OPEN") == "OPEN"]
 
-    section_heading("Overview")
+    section_heading("Analytics")
     render_findings_overview(deployments, all_findings, open_findings)
 
-    section_heading("Deployments &amp; findings")
+    section_heading("Deployments")
+    st.markdown(
+        content_toolbar(
+            "Deployment queue",
+            f"{len(deployments)} builds · {sum(1 for d in deployments if d['status'] != 'DEPLOYED')} awaiting deploy",
+        ),
+        unsafe_allow_html=True,
+    )
     global_findings_search(deployments)
 
     if all_findings:
-        st.download_button(
-            "Export all findings (CSV)",
-            data=findings_to_csv([{**f, "deployment_id": None} for f in all_findings]),
-            file_name="all_security_findings.csv",
-            mime="text/csv",
-            icon=":material/download:",
-        )
-    st.markdown("<br>", unsafe_allow_html=True)
+        _, dl_col = st.columns([4, 1])
+        with dl_col:
+            st.download_button(
+                "Export CSV",
+                data=findings_to_csv([{**f, "deployment_id": None} for f in all_findings]),
+                file_name="all_security_findings.csv",
+                mime="text/csv",
+                icon=":material/download:",
+                use_container_width=True,
+            )
+    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
     for dep in deployments:
         render_deployment_row(dep)
@@ -1300,60 +1935,65 @@ def deployment_detail_page(dep):
         )
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Total findings", total)
-    m2.metric("Open", open_count)
-    m3.metric("Cleared", total - open_count)
+    dep_posture = compute_security_posture(open_findings, total)
     overdue = sum(
         1 for f in findings
-        if f.get("due_date") and f["due_date"] < datetime.utcnow().date() and (f["status"] or "OPEN") in ("POSTPONED", "RISK_ACCEPTED")
+        if f.get("due_date") and f["due_date"] < datetime.utcnow().date()
+        and (f["status"] or "OPEN") in ("POSTPONED", "RISK_ACCEPTED")
     )
-    m4.metric("Overdue", overdue, delta=None if overdue == 0 else "past fix-by date", delta_color="inverse")
+    st.markdown(
+        f'<div class="kpi-grid kpi-grid-5" style="margin-bottom:14px;">'
+        f'{hero_kpi("Total", total, accent=ACCENT, icon="📋")}'
+        f'{hero_kpi("Open", open_count, accent=DANGER if open_count else SUCCESS, icon="🔍")}'
+        f'{hero_kpi("Cleared", total - open_count, accent=SUCCESS, icon="✅")}'
+        f'{hero_kpi("Overdue", overdue, accent=DANGER if overdue else NEUTRAL, delta="past fix-by" if overdue else "on track", delta_color=DANGER if overdue else SUCCESS, icon="⏰")}'
+        f'{hero_kpi("Posture", f"{dep_posture}%", accent=posture_color(dep_posture), delta=f"Score {dep_posture}/100", icon="📈")}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
-    section_heading("Deployment breakdown")
-    c1, c2, c3 = st.columns(3)
+    section_heading("Analytics")
 
-    with c1:
-        panel_open("Open findings by severity")
-        sev_counts = {}
-        for f in open_findings:
-            sev = (f["severity"] or "INFO").upper()
-            sev_counts[sev] = sev_counts.get(sev, 0) + 1
-        ordered = [(s, sev_counts.get(s, 0)) for s in SEVERITY_ORDER]
-        fig = donut_chart(ordered, STATE_COLOR, center_sub="open")
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"dep_sev_{dep['id']}")
-        else:
-            st.caption("No open findings.")
-        panel_close()
+    sev_counts = {}
+    for f in open_findings:
+        sev = (f["severity"] or "INFO").upper()
+        sev_counts[sev] = sev_counts.get(sev, 0) + 1
+    sev_ordered = [(s, sev_counts.get(s, 0)) for s in SEVERITY_ORDER]
 
-    with c2:
-        panel_open("Findings by status")
-        status_counts = {}
-        for f in findings:
-            s = (f["status"] or "OPEN").upper()
-            status_counts[s] = status_counts.get(s, 0) + 1
-        ordered = [(s, status_counts.get(s, 0)) for s in ["OPEN", "IGNORED", "POSTPONED", "RISK_ACCEPTED"]]
-        fig = donut_chart(ordered, STATE_COLOR, center_sub="findings")
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"dep_status_{dep['id']}")
-        else:
-            st.caption("No findings.")
-        panel_close()
+    status_counts = {}
+    for f in findings:
+        s = (f["status"] or "OPEN").upper()
+        status_counts[s] = status_counts.get(s, 0) + 1
+    status_ordered = [(s, status_counts.get(s, 0)) for s in ["OPEN", "IGNORED", "POSTPONED", "RISK_ACCEPTED"]]
 
-    with c3:
-        panel_open("Open findings by tool")
-        tool_counts = {}
-        for f in open_findings:
-            tool_counts[f["tool"]] = tool_counts.get(f["tool"], 0) + 1
-        tools_sorted = sorted(tool_counts.items(), key=lambda kv: kv[1], reverse=True)
+    tool_counts = {}
+    for f in open_findings:
+        tool_counts[f["tool"]] = tool_counts.get(f["tool"], 0) + 1
+    tools_sorted = sorted(tool_counts.items(), key=lambda kv: kv[1], reverse=True)
+
+    analytics_shell_open(f"Deployment #{dep['id']} analytics")
+    tab_comp, tab_tools = st.tabs(["Composition", "Scanners"])
+
+    with tab_comp:
+        def _sev():
+            chart_panel("Open by severity", f"{open_count} open findings",
+                        donut_chart(sev_ordered, STATE_COLOR, center_sub="open"),
+                        chart_key=f"dep_sev_{dep['id']}")
+        def _status():
+            chart_panel("By disposition", "All findings in this deployment",
+                        donut_chart(status_ordered, STATE_COLOR, center_sub="findings"),
+                        chart_key=f"dep_status_{dep['id']}")
+        two_chart_row(_sev, _status)
+
+    with tab_tools:
         if tools_sorted:
             names = [t for t, _ in tools_sorted]
-            fig = bar_chart(names, [c for _, c in tools_sorted], colors=ACCENT, height=210)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False}, key=f"dep_tool_{dep['id']}")
+            chart_panel("Open findings by scanner", "Which tools reported issues",
+                        bar_chart(names, [c for _, c in tools_sorted], colors=ACCENT, height=280),
+                        chart_key=f"dep_tool_{dep['id']}")
         else:
-            st.caption("Nothing to chart yet.")
-        panel_close()
+            st.info("No open findings from any scanner.")
+    analytics_shell_close()
 
     section_heading("Actions")
     action_cols = st.columns([2, 2, 4])
@@ -1434,35 +2074,58 @@ def deployment_detail_page(dep):
 # AV Results tab
 # --------------------------------------------------------------------------
 def render_av_overview(rows):
-    """Chart panels: clean vs flagged mix, and scan volume over time so a
-    security lead can spot a spike (or a scanner that's gone quiet) fast."""
+    """Tabbed AV analytics — overview, trends, and engine breakdown."""
     clean = sum(1 for r in rows if r["overall_status"] == "CLEAN")
     flagged = len(rows) - clean
+    clean_pct = round((clean / len(rows)) * 100) if rows else 0
+    clamav_flagged = sum(1 for r in rows if r.get("clamav_status") not in (None, "OK", "CLEAN"))
+    yara_flagged = sum(1 for r in rows if r.get("yara_status") not in (None, "OK", "CLEAN", "NO_MATCH"))
 
-    col1, col2 = st.columns([1, 2])
+    st.markdown(status_banner([
+        (f"{clean_pct}% clean rate", posture_color(clean_pct)),
+        (f"{flagged} flagged", DANGER if flagged else NEUTRAL),
+        (f"{len(rows)} scanned", ACCENT),
+    ]), unsafe_allow_html=True)
 
-    with col1:
-        panel_open("Clean vs. flagged", f"{len(rows)} files scanned (most recent 500)")
-        fig = donut_chart(
-            [("CLEAN", clean), ("FLAGGED", flagged)],
-            {"CLEAN": SUCCESS, "FLAGGED": DANGER},
-            center_sub="scanned",
-        )
-        if fig:
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        panel_close()
+    analytics_shell_open("AV scan analytics")
+    tab_overview, tab_trends, tab_engines = st.tabs(["Overview", "Trends", "Engines"])
 
-    with col2:
-        panel_open("Scan volume over time", "Files scanned per day")
-        dated = [r["scanned_at"].date() if hasattr(r["scanned_at"], "date") else r["scanned_at"] for r in rows if r.get("scanned_at")]
+    with tab_overview:
+        def _mix():
+            chart_panel("Clean vs. flagged", f"{len(rows)} files in recent window",
+                        donut_chart([("CLEAN", clean), ("FLAGGED", flagged)],
+                                    {"CLEAN": SUCCESS, "FLAGGED": DANGER}, center_sub="scanned"))
+        def _rate():
+            chart_panel("Clean rate", "Percentage of scans with no detections",
+                        gauge_chart(clean_pct, title="Clean scans", color=posture_color(clean_pct), height=260))
+        two_chart_row(_mix, _rate)
+
+    with tab_trends:
+        dated = [r["scanned_at"].date() if hasattr(r["scanned_at"], "date") else r["scanned_at"]
+                 for r in rows if r.get("scanned_at")]
         if dated:
             df = pd.DataFrame({"day": dated})
             daily = df.groupby("day").size().reset_index(name="count").sort_values("day")
-            fig = trend_chart(daily["day"].astype(str).tolist(), daily["count"].tolist(), color=ACCENT, height=210)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            chart_panel("Scan volume over time", "Files scanned per day — spot spikes or quiet periods",
+                        trend_chart(daily["day"].astype(str).tolist(), daily["count"].tolist(),
+                                    color=SUCCESS, height=300))
         else:
-            st.caption("No timestamps to chart yet.")
-        panel_close()
+            st.info("No timestamp data available for trend analysis.")
+
+    with tab_engines:
+        def _clam():
+            c_clean = len(rows) - clamav_flagged
+            chart_panel("ClamAV engine", "Signature-based detection results",
+                        bar_chart(["Clean", "Flagged"], [c_clean, clamav_flagged],
+                                  colors=[SUCCESS, DANGER], height=260))
+        def _yara():
+            y_clean = len(rows) - yara_flagged
+            chart_panel("YARA engine", "Rule-based pattern matching results",
+                        bar_chart(["Clean", "Matches"], [y_clean, yara_flagged],
+                                  colors=[SUCCESS, WARNING], height=260))
+        two_chart_row(_clam, _yara)
+
+    analytics_shell_close()
 
 
 @st.fragment
@@ -1473,11 +2136,17 @@ def av_results_tab():
         return
 
     clean = sum(1 for r in rows if r["overall_status"] == "CLEAN")
+    flagged = len(rows) - clean
 
-    section_heading("Overview")
+    section_heading("Analytics")
     render_av_overview(rows)
 
     section_heading("Scan results")
+    st.markdown(
+        content_toolbar("Recent scans", f"{len(rows)} results in window · {flagged} flagged"),
+        unsafe_allow_html=True,
+    )
+
     m1, m2, m3 = st.columns(3)
     m1.metric("Scanned (recent)", len(rows))
     m2.metric("Clean", clean)
@@ -1551,10 +2220,14 @@ def render_sidebar(open_findings):
 
     with st.sidebar:
         st.markdown(
-            '<div class="aegis-logo-row"><span class="eyebrow">Security Operations</span></div>'
-            '<div class="aegis-title" style="font-size:1.4rem;">AEGIS</div>',
+            f'<div class="aegis-logo-row"><span class="aegis-shield" style="width:32px;height:32px;font-size:0.95rem;">🛡️</span>'
+            '<div><span class="eyebrow">Security Operations</span>'
+            '<div class="aegis-title" style="font-size:1.35rem;">AEGIS</div></div></div>',
             unsafe_allow_html=True,
         )
+        st.markdown('<div class="sidebar-card"><div class="sidebar-user">Control Center</div>'
+                    '<div style="font-size:0.78rem;color:#64748B;margin-top:2px;">DevSecOps · K8s · AV</div></div>',
+                    unsafe_allow_html=True)
         st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
 
         badges = {"findings": open_findings}
@@ -1625,7 +2298,12 @@ def main():
     if auto_refresh:
         st.markdown('<meta http-equiv="refresh" content="10">', unsafe_allow_html=True)
 
-    header_col1, header_col2 = st.columns([3, 2])
+    posture = compute_security_posture(
+        [f for dep in deployments for f in dep["findings"] if (f["status"] or "OPEN") == "OPEN"],
+        sum(len(dep["findings"]) for dep in deployments),
+    )
+
+    header_col1, header_col2 = st.columns([2.2, 2.8])
     with header_col1:
         page_meta = next(p for p in PAGES if p["key"] == active_page)
         st.markdown('<div class="eyebrow">Security Operations</div>', unsafe_allow_html=True)
@@ -1635,18 +2313,31 @@ def main():
             unsafe_allow_html=True,
         )
     with header_col2:
-        oc1, oc2, oc3 = st.columns(3)
-        oc1.metric("Open findings", open_findings, delta=None if open_findings == 0 else f"{open_findings} unresolved", delta_color="inverse")
-        oc2.metric("Awaiting deploy", pending_deploys)
-        oc3.metric("Overdue", overdue_count, delta=None if overdue_count == 0 else "past fix-by date", delta_color="inverse")
+        open_delta = "All clear" if open_findings == 0 else f"{open_findings} need triage"
+        deploy_delta = "Queue empty" if pending_deploys == 0 else f"{pending_deploys} in pipeline"
+        st.markdown(
+            f'<div class="kpi-grid">'
+            f'{hero_kpi("Open findings", open_findings, accent=DANGER if open_findings else SUCCESS, delta=open_delta, delta_color=DANGER if open_findings else SUCCESS, icon="🔍", glow="rgba(220,38,38,0.12)")}'
+            f'{hero_kpi("Awaiting deploy", pending_deploys, accent=ACCENT, delta=deploy_delta, icon="🚀", glow=ACCENT_GLOW)}'
+            f'{hero_kpi("Posture", f"{posture}%", accent=posture_color(posture), delta=f"Score {posture}/100 · {overdue_count} overdue" if overdue_count else f"Score {posture}/100", delta_color=DANGER if overdue_count else posture_color(posture), icon="📈", glow=_hex_rgba(posture_color(posture), 0.15))}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
+    dot_class = "pulse-dot"
+    if open_findings > 0 or overdue_count > 0:
+        dot_class = "pulse-dot-warn" if overdue_count == 0 else "pulse-dot-danger"
     now_str = datetime.utcnow().strftime("%H:%M:%S UTC")
     st.markdown(
-        f'<span class="pulse-dot"></span><span class="spine-sub">Live &middot; last sync {now_str} &middot; '
-        f'data cached for {DASHBOARD_DATA_TTL}s (use \'Refresh all data\' in the sidebar for instant updates)</span>',
+        f'<div class="status-banner" style="margin-top:14px;">'
+        f'<span class="{dot_class}"></span>'
+        f'<span class="status-chip"><span class="dot" style="background:{SUCCESS};"></span>Live · {now_str}</span>'
+        f'<span class="status-chip">Cache {DASHBOARD_DATA_TTL}s · pods {PODS_TTL}s · AV {AV_RESULTS_TTL}s</span>'
+        f'<span class="status-chip">Overdue: <b>{overdue_count}</b></span>'
+        f'</div>',
         unsafe_allow_html=True,
     )
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
 
     # Only the active page's function runs - this is the main perf fix vs. the
     # old st.tabs layout, which executed every tab's body (including kubectl
@@ -1657,6 +2348,11 @@ def main():
         security_findings_tab()
     elif active_page == "av":
         av_results_tab()
+
+    st.markdown(
+        f'<div class="page-footer">AEGIS DevSecOps Control Center · {datetime.utcnow().strftime("%Y")} · v1.0</div>',
+        unsafe_allow_html=True,
+    )
 
 
 if __name__ == "__main__":
