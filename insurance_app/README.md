@@ -13,7 +13,7 @@
 - **Docker** and **Docker Compose** installed.
 - Ensure your user is in the `docker` group or use `sudo`.
 
-## How to Run (Linux)
+##  How to Run (Linux)
 
 1. **Navigate to the directory**:
     ```bash
